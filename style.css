@@ -133,6 +133,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .location-setup { width: min(560px, calc(100% - 36px)); min-height: 100vh; margin: 0 auto; display: grid; align-content: center; text-align: center; }
 .location-setup h1 { font-size: 32px; }
 .location-setup p { color: var(--muted); line-height: 1.6; }
+.location-setup button { min-height: 48px; margin: 12px auto 0; padding: 0 20px; border: 0; border-radius: 6px; background: var(--teal); color: #fff; font-weight: 700; cursor: pointer; }
+.location-setup button:hover { background: #20685e; }
+.location-setup .location-setup-status { min-height: 24px; }
 @media (max-width: 760px) {
   .topbar { width: calc(100% - 36px); height: 70px; }
   .update-notice { width: calc(100% - 36px); }
