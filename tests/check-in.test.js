@@ -879,7 +879,8 @@ test('native install prompt launches after browser location setup', async () => 
   app.elements.get('invite-install').click();
   assert.equal(prompted, 0);
   app.elements.get('install-done').click();
-  app.elements.get('install-button').click();
+  assert.equal(app.elements.get('install-invitation').open, true);
+  app.elements.get('invite-install').click();
   assert.equal(prevented, true);
   assert.equal(prompted, 1);
   await flush();
@@ -894,7 +895,8 @@ test('install help appears immediately when native prompt is unavailable', () =>
   app.handlers.load();
   app.elements.get('invite-install').click();
   app.elements.get('install-done').click();
-  app.elements.get('install-button').click();
+  assert.equal(app.elements.get('install-invitation').open, true);
+  app.elements.get('invite-install').click();
   assert.equal(app.elements.get('install-dialog').open, true);
   assert.match(app.elements.get('install-instructions').textContent, /Share.*Add to Home Screen/);
 });
@@ -921,7 +923,8 @@ test('location setup popup failure explains how to continue installing', () => {
   app.elements.get('install-button').click();
   assert.match(app.elements.get('install-instructions').textContent, /could not be opened.*continue without location setup/i);
   app.elements.get('install-done').click();
-  app.elements.get('install-button').click();
+  assert.equal(app.elements.get('install-invitation').open, true);
+  app.elements.get('invite-install').click();
   assert.match(app.elements.get('install-instructions').textContent, /Open your browser menu/);
 });
 

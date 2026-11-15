@@ -405,7 +405,10 @@
         ? 'A browser page opened. Allow location there, then return to Bearly Chat.'
         : 'The webpage could not be opened. Allow popups and try again.';
     });
-    document.getElementById('install-done').addEventListener('click', () => installDialog.close());
+    document.getElementById('install-done').addEventListener('click', () => {
+      installDialog.close();
+      if (!isInstalled) installInvitation.showModal();
+    });
     if ('serviceWorker' in navigator && window.isSecureContext) {
       const updateNotice = document.getElementById('update-notice');
       const updateButton = document.getElementById('update-app');
