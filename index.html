@@ -216,9 +216,6 @@
   <dialog class="install-dialog" id="install-dialog" aria-labelledby="install-heading">
     <h2 id="install-heading">Install Bearly Chat</h2>
     <p id="install-instructions" role="status"></p>
-    <p>Optional: open a browser page to allow location for future check-ins. The installed app may ask again.</p>
-    <button class="dialog-secondary" id="install-location" type="button">Open location webpage</button>
-    <p class="dialog-status" id="install-location-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="install-done" type="button">Done</button>
   </dialog>
   <main class="closed" id="closed" hidden>
@@ -235,8 +232,6 @@
     const installButton = document.getElementById('install-button');
     const installInvitation = document.getElementById('install-invitation');
     const installDialog = document.getElementById('install-dialog');
-    const installLocationButton = document.getElementById('install-location');
-    const installLocationStatus = document.getElementById('install-location-status');
     const locationDialog = document.getElementById('location-dialog');
     const locationStatus = document.getElementById('location-status');
     const saveButton = document.getElementById('save-check-in');
@@ -255,7 +250,6 @@
     let savedCheckIn = null;
     let savedCheckInKey;
     let locationRequest = 0;
-    let locationSetupOpened = false;
     let savingCheckIn = false;
     let startupUpdating = false;
     let pageLoaded = false;
@@ -356,7 +350,6 @@
     });
     installInvitation.addEventListener('cancel', () => speak('How do you feel?'));
     function showInstallHelp(instructions) {
-      installLocationStatus.textContent = '';
       document.getElementById('install-instructions').textContent = instructions;
       installDialog.showModal();
     }
@@ -371,14 +364,6 @@
     }
 
     installButton.addEventListener('click', async () => {
-      if (!locationSetupOpened) {
-        locationSetupOpened = true;
-        const page = window.open('./location-setup.html', '_blank');
-        showInstallHelp(page
-          ? 'A browser page opened to allow location. After you finish or skip that step, return here, select Done, then select Install app again. Location permission is optional.'
-          : 'The location webpage could not be opened. Allow popups and try again, or select Done and Install app again to continue without location setup.');
-        return;
-      }
       if (!installPrompt) {
         showInstallHelp(installInstructions());
         return;
@@ -399,16 +384,7 @@
         installButton.disabled = false;
       }
     });
-    installLocationButton.addEventListener('click', () => {
-      const page = window.open('./location-setup.html', '_blank');
-      installLocationStatus.textContent = page
-        ? 'A browser page opened. Allow location there, then return to Bearly Chat.'
-        : 'The webpage could not be opened. Allow popups and try again.';
-    });
-    document.getElementById('install-done').addEventListener('click', () => {
-      installDialog.close();
-      if (!isInstalled) installInvitation.showModal();
-    });
+    document.getElementById('install-done').addEventListener('click', () => installDialog.close());
     if ('serviceWorker' in navigator && window.isSecureContext) {
       const updateNotice = document.getElementById('update-notice');
       const updateButton = document.getElementById('update-app');

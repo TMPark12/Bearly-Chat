@@ -6,7 +6,6 @@ const vm = require('node:vm');
 const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const locationSetupHtml = fs.readFileSync(require('node:path').join(__dirname, '../location-setup.html'), 'utf8');
-const locationSetupScript = locationSetupHtml.match(/<script>([\s\S]*?)<\/script>/)[1];
 
 function createApp(options = {}) {
   const elements = new Map();
@@ -362,7 +361,6 @@ test('Bearly Chat retains the existing installed identity and saved check-ins', 
   assert.equal(manifest.short_name, 'Bearly Chat');
   assert.equal(manifest.id, './');
   assert.match(html, /class="brand"[^>]*>.*Bearly Chat/);
-  assert.match(locationSetupHtml, /<title>Allow location - Bearly Chat<\/title>/);
   let databaseName;
   const records = [{ feeling: 'Happy', color: 'Blue', localDateTime: 'Today', latitude: 42, longitude: -71, accuracyMeters: 10 }];
   const app = createApp({ records, onOpenDatabase(name) { databaseName = name; } });
@@ -814,41 +812,10 @@ test('migrates earlier check-ins and clears them only after export', async () =>
   assert.equal(app.records.length, 0);
 });
 
-test('install flow opens a browser location page and does not save a location', () => {
-  const app = createApp();
-  app.elements.get('install-button').click();
-  assert.equal(app.getRequest(), undefined);
-  assert.deepEqual(app.openedPages, [{ url: './location-setup.html', target: '_blank' }]);
-  assert.match(app.elements.get('install-instructions').textContent, /select Done, then select Install app again/i);
-  app.elements.get('install-location').click();
-  assert.equal(app.getRequest(), undefined);
-  assert.equal(app.openedPages.length, 2);
-  assert.match(app.elements.get('install-location-status').textContent, /browser page opened/i);
-  assert.equal(app.records.length, 0);
-});
-
-test('location webpage requests permission only after a tap and does not save or upload coordinates', () => {
-  const elements = new Map();
-  for (const id of ['allow-location', 'location-status']) {
-    elements.set(id, { disabled: false, textContent: '', events: {}, addEventListener(name, callback) { this.events[name] = callback; } });
-  }
-  let request;
-  const navigator = {
-    geolocation: {
-      getCurrentPosition(success, failure, settings) { request = { success, failure, settings }; }
-    }
-  };
-  vm.runInNewContext(locationSetupScript, {
-    document: { getElementById(id) { return elements.get(id); } },
-    navigator,
-    window: { isSecureContext: true }
-  });
-
-  assert.equal(request, undefined);
-  elements.get('allow-location').events.click();
-  assert.ok(request);
-  request.success(position());
-  assert.match(elements.get('location-status').textContent, /did not save or upload the coordinates/i);
+test('old location setup link directs users back to the app without requesting location', () => {
+  assert.match(locationSetupHtml, /location setup is no longer needed/i);
+  assert.match(locationSetupHtml, /href="\.\/"/);
+  assert.doesNotMatch(locationSetupHtml, /getCurrentPosition|allow-location/);
 });
 
 test('install invitation appears once per session and not in standalone mode', () => {
@@ -867,65 +834,57 @@ test('install invitation appears once per session and not in standalone mode', (
   assert.equal(installed.elements.get('install-button').hidden, true);
 });
 
-test('native install prompt launches after browser location setup', async () => {
-  const app = createApp();
-  let prompted = 0;
-  let prevented = false;
-  app.handlers.beforeinstallprompt({
-    preventDefault() { prevented = true; },
-    prompt() { prompted++; return Promise.resolve({ outcome: 'accepted' }); }
-  });
-  app.handlers.load();
-  app.elements.get('invite-install').click();
-  assert.equal(prompted, 0);
-  app.elements.get('install-done').click();
-  assert.equal(app.elements.get('install-invitation').open, true);
-  app.elements.get('invite-install').click();
-  assert.equal(prevented, true);
-  assert.equal(prompted, 1);
-  await flush();
-  assert.match(app.elements.get('install-instructions').textContent, /installation started/i);
-  assert.equal(app.elements.get('install-dialog').open, true);
-  app.handlers.appinstalled();
-  assert.equal(app.elements.get('install-button').hidden, true);
+test('native install prompt launches immediately without location setup', async () => {
+  for (const entry of ['invite-install', 'install-button']) {
+    const app = createApp({ noGeolocation: entry === 'install-button' });
+    let prompted = 0;
+    let prevented = false;
+    app.handlers.beforeinstallprompt({
+      preventDefault() { prevented = true; },
+      prompt() { prompted++; return Promise.resolve({ outcome: 'accepted' }); }
+    });
+    if (entry === 'invite-install') app.handlers.load();
+    app.elements.get(entry).click();
+    assert.equal(prevented, true);
+    assert.equal(prompted, 1);
+    assert.equal(app.getRequest(), undefined);
+    assert.equal(app.openedPages.length, 0);
+    await flush();
+    assert.match(app.elements.get('install-instructions').textContent, /installation started/i);
+    assert.equal(app.elements.get('install-dialog').open, true);
+    app.elements.get('install-done').click();
+    assert.notEqual(app.elements.get('install-invitation').open, true);
+    app.handlers.appinstalled();
+    assert.equal(app.elements.get('install-button').hidden, true);
+  }
 });
 
 test('install help appears immediately when native prompt is unavailable', () => {
   const app = createApp({ userAgent: 'iPhone', platform: 'iPhone' });
   app.handlers.load();
   app.elements.get('invite-install').click();
-  app.elements.get('install-done').click();
-  assert.equal(app.elements.get('install-invitation').open, true);
-  app.elements.get('invite-install').click();
   assert.equal(app.elements.get('install-dialog').open, true);
   assert.match(app.elements.get('install-instructions').textContent, /Share.*Add to Home Screen/);
+  assert.equal(app.getRequest(), undefined);
+  assert.equal(app.openedPages.length, 0);
+  app.elements.get('install-done').click();
+  assert.equal(app.elements.get('install-dialog').open, false);
+  assert.equal(app.elements.get('install-invitation').open, false);
 });
 
 test('dismissed and failed native prompts do not claim installation succeeded', async () => {
   const dismissed = createApp();
   dismissed.handlers.beforeinstallprompt({ preventDefault() {}, prompt() { return Promise.resolve({ outcome: 'dismissed' }); } });
-  dismissed.elements.get('install-button').click();
-  dismissed.elements.get('install-done').click();
   await dismissed.elements.get('install-button').click();
-  assert.equal(dismissed.elements.get('install-dialog').open, false);
+  assert.notEqual(dismissed.elements.get('install-dialog').open, true);
   assert.equal(dismissed.elements.get('install-button').hidden, false);
+  dismissed.elements.get('install-button').click();
+  assert.match(dismissed.elements.get('install-instructions').textContent, /Open your browser menu/);
   const failed = createApp();
   failed.handlers.beforeinstallprompt({ preventDefault() {}, prompt() { return Promise.reject(new Error('unavailable')); } });
-  failed.elements.get('install-button').click();
-  failed.elements.get('install-done').click();
   await failed.elements.get('install-button').click();
   assert.match(failed.elements.get('install-instructions').textContent, /could not open.*install/i);
   assert.equal(failed.elements.get('install-dialog').open, true);
-});
-
-test('location setup popup failure explains how to continue installing', () => {
-  const app = createApp({ popupBlocked: true });
-  app.elements.get('install-button').click();
-  assert.match(app.elements.get('install-instructions').textContent, /could not be opened.*continue without location setup/i);
-  app.elements.get('install-done').click();
-  assert.equal(app.elements.get('install-invitation').open, true);
-  app.elements.get('invite-install').click();
-  assert.match(app.elements.get('install-instructions').textContent, /Open your browser menu/);
 });
 
 test('installed app applies a waiting update before showing the demo or check-in', async () => {
