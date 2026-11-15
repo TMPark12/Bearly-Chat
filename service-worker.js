@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toddle-cation-v24';
+const CACHE_NAME = 'toddle-cation-v25';
 const APP_FILES = ['./', './index.html', './location-setup.html', './style.css', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', event => {

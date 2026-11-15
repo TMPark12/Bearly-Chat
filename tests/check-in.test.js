@@ -282,6 +282,15 @@ test('help and demo offer printing and report when printing is unavailable', () 
   assert.match(unavailable.elements.get('demo-print-status').textContent, /printing is unavailable/i);
 });
 
+test('help and printable demo include the installation website link', () => {
+  const url = 'https://tmpark12.github.io/Bearly-Chat/';
+  for (const id of ['help-dialog', 'demo-dialog']) {
+    const dialog = html.match(new RegExp(`<dialog\\b[^>]*id="${id}"[^>]*>([\\s\\S]*?)</dialog>`))[1];
+    assert.match(dialog, /having trouble installing\?.*in a browser.*install app/i);
+    assert.ok(dialog.includes(`<a href="${url}">${url}</a>`));
+  }
+});
+
 test('shuffles the feeling choices on load while keeping each emoji paired with its label', () => {
   const app = createApp();
   assert.deepEqual(app.feelingOrder, ['Sad', 'Mad', 'Happy']);
