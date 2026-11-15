@@ -5,6 +5,8 @@ const vm = require('node:vm');
 
 const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const locationSetupHtml = fs.readFileSync(require('node:path').join(__dirname, '../location-setup.html'), 'utf8');
+const locationSetupScript = locationSetupHtml.match(/<script>([\s\S]*?)<\/script>/)[1];
 
 function createApp(options = {}) {
   const elements = new Map();
@@ -35,26 +37,32 @@ function createApp(options = {}) {
   }
   const feeling = element();
   feeling.lastChild = { textContent: 'Happy' };
+  feeling.querySelector = () => ({ textContent: '😊' });
   const sadFeeling = element();
   sadFeeling.lastChild = { textContent: 'Sad' };
+  sadFeeling.querySelector = () => ({ textContent: '😢' });
   const madFeeling = element();
   madFeeling.lastChild = { textContent: 'Mad' };
+  madFeeling.querySelector = () => ({ textContent: '😠' });
   const feelings = element();
   const feelingChoices = [feeling, sadFeeling, madFeeling];
   feelingChoices.forEach(choice => feelings.appendChild(choice));
   const color = element();
   color.attributes['aria-label'] = 'Blue';
+  color.dataset.color = 'blue';
   const redColor = element();
   redColor.attributes['aria-label'] = 'Red';
+  redColor.dataset.color = 'red';
   const yellowColor = element();
   yellowColor.attributes['aria-label'] = 'Yellow';
+  yellowColor.dataset.color = 'yellow';
   const colorChoices = [color, redColor, yellowColor];
   const colors = element();
   colorChoices.forEach(choice => colors.appendChild(choice));
   const sound = element();
   const handlers = {};
   const storage = options.storageValues || new Map();
-  const records = [];
+  const records = options.records || [];
   const metadata = new Map();
   if (options.legacy) storage.set('toddle-cation-check-ins', JSON.stringify(options.legacy));
   const localStorage = {
@@ -63,7 +71,7 @@ function createApp(options = {}) {
     removeItem(key) { if (options.storageError) throw new Error('Storage unavailable'); storage.delete(key); }
   };
   let request;
-  const navigator = { userAgent: options.userAgent || '', platform: options.platform || '', standalone: options.standalone || false };
+  const navigator = { userAgent: options.userAgent || '', platform: options.platform || '', standalone: options.standalone || false, onLine: options.online !== false };
   if (options.serviceWorker) navigator.serviceWorker = options.serviceWorker;
   if (!options.noGeolocation) navigator.geolocation = {
     getCurrentPosition(success, failure, settings) { request = { success, failure, settings }; }
@@ -73,10 +81,26 @@ function createApp(options = {}) {
     matchMedia() { return { matches: !!options.standalone }; },
     addEventListener(name, callback) { handlers[name] = callback; },
     location: { reload() { if (options.onReload) options.onReload(); } },
+    open(url, target) {
+      openedPages.push({ url, target });
+      return options.popupBlocked ? null : {};
+    },
     scrollTo() {}, close() {}, confirm() { return true; }
   };
   if (options.onPrint) window.print = options.onPrint;
   if (options.showDirectoryPicker) window.showDirectoryPicker = options.showDirectoryPicker;
+  const spoken = [];
+  const utterances = [];
+  const speechEvents = {};
+  function SpeechSynthesisUtterance(text) { this.text = text; }
+  if (options.speech) {
+    window.SpeechSynthesisUtterance = SpeechSynthesisUtterance;
+    window.speechSynthesis = {
+      cancel() {}, getVoices() { return options.voices || []; },
+      addEventListener(name, callback) { speechEvents[name] = callback; },
+      speak(utterance) { spoken.push(utterance.text); utterances.push(utterance); }
+    };
+  }
   const database = {
     createObjectStore() {},
     close() {},
@@ -116,7 +140,8 @@ function createApp(options = {}) {
   };
   let created = false;
   const indexedDB = {
-    open() {
+    open(name) {
+      if (options.onOpenDatabase) options.onOpenDatabase(name);
       const request = { result: database };
       queueMicrotask(() => {
         if (!created) { created = true; request.onupgradeneeded(); }
@@ -127,6 +152,7 @@ function createApp(options = {}) {
   };
   const downloads = [];
   const downloadLinks = [];
+  const openedPages = [];
   const sessionValues = options.sessionValues || new Map();
   const sessionStorage = {
     getItem(key) { return sessionValues.get(key) ?? null; },
@@ -146,9 +172,9 @@ function createApp(options = {}) {
     }
   };
   const testMath = Object.assign(Object.create(Math), { random: () => 0 });
-  vm.runInNewContext(script, { document, window, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, Math: testMath, setTimeout, clearTimeout, console: { error() {} } });
+  vm.runInNewContext(script, { document, window, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, SpeechSynthesisUtterance, Math: testMath, setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout, console: { error() {} } });
   return {
-    elements, feeling, color, storage, records, downloads, downloadLinks, handlers,
+    elements, feeling, sadFeeling, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
     feelingOrder: feelings.children.map(choice => choice.lastChild.textContent),
     colorOrder: colors.children.map(choice => choice.getAttribute('aria-label')),
     getRequest: () => request
@@ -158,9 +184,19 @@ function createApp(options = {}) {
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 function select(app) {
-  app.feeling.click();
-  app.color.click();
+  chooseFeeling(app);
+  chooseColor(app);
   app.elements.get('continue-to-save').click();
+}
+
+function chooseFeeling(app) {
+  app.feeling.click();
+  app.elements.get('confirm-feeling').click();
+}
+
+function chooseColor(app) {
+  app.color.click();
+  app.elements.get('confirm-color').click();
 }
 
 function position() {
@@ -199,8 +235,8 @@ test('first-launch demo returns to the check-in without reopening help', () => {
 
 test('demo navigation leaves an unfinished check-in intact and does not request location', async () => {
   const app = createApp();
-  app.feeling.click();
-  app.color.click();
+  chooseFeeling(app);
+  chooseColor(app);
   app.elements.get('owner-notes').value = 'A note in progress';
   app.elements.get('open-help').click();
   app.elements.get('start-demo').click();
@@ -257,17 +293,203 @@ test('shuffles the color choices on load while keeping each swatch paired with i
   assert.deepEqual(app.colorOrder, ['Red', 'Yellow', 'Blue']);
 });
 
+test('voice preference uses one device voice throughout and persists the chosen option', async () => {
+  const storageValues = new Map();
+  const female = { name: 'Samantha', lang: 'en-US' };
+  const male = { name: 'Daniel', lang: 'en-GB' };
+  const voices = [female, male];
+  const app = createApp({ speech: true, voices, storageValues });
+  app.feeling.click();
+  assert.equal(app.utterances.at(-1).voice, female);
+  voices.unshift({ name: 'Samantha Enhanced', lang: 'en-US' });
+  app.speechEvents.voiceschanged();
+  app.elements.get('confirm-feeling').click();
+  app.color.click();
+  assert.ok(app.utterances.every(utterance => utterance.voice === female));
+  app.elements.get('decline-color').click();
+  app.elements.get('back').click();
+  app.elements.get('voice-preference').value = 'male';
+  app.elements.get('voice-preference').events.change();
+  assert.equal(app.utterances.at(-1).voice, male);
+  assert.equal(storageValues.get('toddle-cation-voice-preference'), 'male');
+  const maleStart = app.utterances.length - 1;
+  chooseFeeling(app);
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  assert.equal(app.utterances.at(-1).text, 'Thank you!');
+  assert.ok(app.utterances.slice(maleStart).every(utterance => utterance.voice === male));
+
+  const reopened = createApp({ speech: true, voices, storageValues });
+  assert.equal(reopened.elements.get('voice-preference').value, 'male');
+  reopened.feeling.click();
+  assert.equal(reopened.utterances.at(-1).voice, male);
+});
+
+test('voice selection reports fallbacks and can retry when device voices load', () => {
+  const voices = [];
+  const app = createApp({ speech: true, voices });
+  app.feeling.click();
+  assert.equal(app.utterances.at(-1).voice, null);
+  assert.match(app.elements.get('voice-status').textContent, /default voice/i);
+  app.elements.get('decline-feeling').click();
+  voices.push({ name: 'Unknown voice', lang: 'en-US' }, { name: 'Daniel', lang: 'en-GB' });
+  app.speechEvents.voiceschanged();
+  app.elements.get('voice-preference').value = 'male';
+  app.elements.get('voice-preference').events.change();
+  assert.equal(app.utterances.at(-1).voice.name, 'Daniel');
+  app.elements.get('voice-preference').value = 'female';
+  app.elements.get('voice-preference').events.change();
+  assert.match(app.elements.get('voice-status').textContent, /no matching female.*unknown voice/i);
+  voices.push({ name: 'Samantha', lang: 'en-US' });
+  app.elements.get('preview-voice').click();
+  assert.equal(app.utterances.at(-1).voice.name, 'Samantha');
+
+  const unsupported = createApp();
+  assert.equal(unsupported.elements.get('voice-preference').disabled, true);
+  assert.match(unsupported.elements.get('voice-status').textContent, /speech is unavailable/i);
+  const noStorage = createApp({ speech: true, storageError: true });
+  noStorage.elements.get('voice-preference').value = 'male';
+  noStorage.elements.get('voice-preference').events.change();
+  assert.match(noStorage.elements.get('voice-status').textContent, /could not be saved/i);
+});
+
+test('Bearly Chat retains the existing installed identity and saved check-ins', async () => {
+  const manifest = JSON.parse(fs.readFileSync(require('node:path').join(__dirname, '../manifest.webmanifest'), 'utf8'));
+  assert.equal(manifest.name, 'Bearly Chat');
+  assert.equal(manifest.short_name, 'Bearly Chat');
+  assert.equal(manifest.id, './');
+  assert.match(html, /class="brand"[^>]*>.*Bearly Chat/);
+  assert.match(locationSetupHtml, /<title>Allow location - Bearly Chat<\/title>/);
+  let databaseName;
+  const records = [{ feeling: 'Happy', color: 'Blue', localDateTime: 'Today', latitude: 42, longitude: -71, accuracyMeters: 10 }];
+  const app = createApp({ records, onOpenDatabase(name) { databaseName = name; } });
+  app.elements.get('open-history').click();
+  await flush();
+  assert.equal(databaseName, 'toddle-cation');
+  assert.equal(app.records.length, 1);
+  assert.match(app.elements.get('history-list').children[0].textContent, /Happy, Blue/);
+});
+
+test('connection indicator follows the browser online and offline events', () => {
+  const app = createApp({ online: false });
+  const status = app.elements.get('connection-status');
+  assert.equal(status.textContent, 'Offline');
+  assert.equal(status.dataset.connection, 'offline');
+  app.navigator.onLine = true;
+  app.handlers.online();
+  assert.equal(status.textContent, 'Online');
+  assert.equal(status.dataset.connection, 'online');
+  app.navigator.onLine = false;
+  app.handlers.offline();
+  assert.equal(status.textContent, 'Offline');
+});
+
+test('feeling confirmation shows and speaks the chosen emoji before continuing', async () => {
+  const app = createApp({ speech: true });
+  app.feeling.click();
+  assert.equal(app.elements.get('feeling-dialog').open, true);
+  assert.equal(app.elements.get('feeling-confirm-emoji').textContent, '😊');
+  assert.equal(app.elements.get('feeling-confirm-heading').textContent, 'Happy');
+  assert.deepEqual(app.spoken, ['Happy']);
+  assert.equal(app.elements.get('feelings-screen').hidden, false);
+  assert.equal(app.elements.get('colors-screen').hidden, true);
+
+  app.elements.get('decline-feeling').click();
+  assert.equal(app.elements.get('feeling-dialog').open, false);
+  assert.equal(app.elements.get('feelings-screen').hidden, false);
+  app.sadFeeling.click();
+  assert.equal(app.elements.get('feeling-confirm-emoji').textContent, '😢');
+  assert.equal(app.elements.get('feeling-confirm-heading').textContent, 'Sad');
+  assert.deepEqual(app.spoken, ['Happy', 'Sad']);
+  app.elements.get('confirm-feeling').click();
+  assert.equal(app.elements.get('feeling-dialog').open, false);
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  assert.equal(app.sadFeeling.getAttribute('aria-pressed'), 'true');
+  assert.equal(app.feeling.getAttribute('aria-pressed'), 'false');
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  assert.equal(app.records[0].feeling, 'Sad');
+});
+
+test('dismissing the feeling popup leaves the previous selection unchanged', () => {
+  const app = createApp();
+  chooseFeeling(app);
+  app.elements.get('back').click();
+  app.sadFeeling.click();
+  app.elements.get('feeling-dialog').events.cancel();
+  app.elements.get('feeling-dialog').close();
+  assert.equal(app.elements.get('feelings-screen').hidden, false);
+  assert.equal(app.feeling.getAttribute('aria-pressed'), 'true');
+  assert.equal(app.sadFeeling.getAttribute('aria-pressed'), 'false');
+  app.feeling.click();
+  app.elements.get('confirm-feeling').click();
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+});
+
+test('color confirmation shows and speaks the color, then saves only the confirmed choice', async () => {
+  const app = createApp({ speech: true });
+  chooseFeeling(app);
+  app.color.click();
+  assert.equal(app.elements.get('color-dialog').open, true);
+  assert.equal(app.elements.get('color-confirm-swatch').dataset.color, 'blue');
+  assert.equal(app.elements.get('color-confirm-heading').textContent, 'Blue');
+  assert.equal(app.spoken.at(-1), 'Blue');
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  assert.equal(app.elements.get('notes-screen').hidden, true);
+  app.elements.get('decline-color').click();
+  assert.equal(app.elements.get('color-dialog').open, false);
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+
+  app.redColor.click();
+  assert.equal(app.elements.get('color-confirm-swatch').dataset.color, 'red');
+  assert.equal(app.elements.get('color-confirm-heading').textContent, 'Red');
+  assert.equal(app.spoken.at(-1), 'Red');
+  app.elements.get('confirm-color').click();
+  assert.equal(app.elements.get('color-dialog').open, false);
+  assert.equal(app.elements.get('notes-screen').hidden, false);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  assert.equal(app.records[0].color, 'Red');
+});
+
+test('dismissing a new color choice stays on colors and allows another selection', async () => {
+  const app = createApp();
+  chooseFeeling(app);
+  chooseColor(app);
+  app.elements.get('back-to-colors').click();
+  app.redColor.click();
+  app.elements.get('color-dialog').events.cancel();
+  app.elements.get('color-dialog').close();
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  app.elements.get('confirm-color').click();
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  assert.equal(app.records[0].color, 'Blue');
+});
+
 test('collects optional device owner notes on a third step before requesting location', () => {
   const app = createApp();
-  app.feeling.click();
+  chooseFeeling(app);
   assert.equal(app.elements.get('step-text').textContent, '2 of 3');
-  app.color.click();
+  chooseColor(app);
   assert.equal(app.elements.get('step-text').textContent, '3 of 3');
   assert.equal(app.elements.get('notes-screen').hidden, false);
   assert.equal(app.elements.get('location-dialog').open, undefined);
   app.elements.get('back-to-colors').click();
   assert.equal(app.elements.get('colors-screen').hidden, false);
-  app.color.click();
+  chooseColor(app);
   app.elements.get('continue-to-save').click();
   assert.equal(app.elements.get('location-dialog').open, true);
   assert.equal(app.elements.get('owner-notes').value, '');
@@ -275,8 +497,8 @@ test('collects optional device owner notes on a third step before requesting loc
 
 test('Enter on the notes page continues to the save confirmation with the notes', async () => {
   const app = createApp();
-  app.feeling.click();
-  app.color.click();
+  chooseFeeling(app);
+  chooseColor(app);
   app.elements.get('owner-notes').value = 'Keyboard note';
   let prevented = false;
   app.elements.get('notes-screen').events.keydown({
@@ -294,8 +516,8 @@ test('Enter on the notes page continues to the save confirmation with the notes'
 
 test('notes keyboard shortcut does not interfere with new lines, composing, or buttons', () => {
   const app = createApp();
-  app.feeling.click();
-  app.color.click();
+  chooseFeeling(app);
+  chooseColor(app);
   const handleKey = app.elements.get('notes-screen').events.keydown;
   for (const props of [{ shiftKey: true }, { isComposing: true }, { target: { closest() { return {}; } } }, { key: 'Escape' }]) {
     let prevented = false;
@@ -307,8 +529,8 @@ test('notes keyboard shortcut does not interfere with new lines, composing, or b
 
 test('skipping notes continues to save with an empty notes field', async () => {
   const app = createApp();
-  app.feeling.click();
-  app.color.click();
+  chooseFeeling(app);
+  chooseColor(app);
   app.elements.get('owner-notes').value = 'Do not include this note.';
   app.elements.get('skip-notes').click();
   assert.equal(app.elements.get('location-dialog').open, true);
@@ -318,8 +540,8 @@ test('skipping notes continues to save with an empty notes field', async () => {
   assert.equal(app.records[0].notes, '');
 });
 
-test('final popup downloads only the saved check-in and close keeps it saved', async () => {
-  const app = createApp();
+test('single check-in download contains all saved data and keeps it until explicitly cleared', async () => {
+  const app = createApp({ userAgent: 'Example Device Browser' });
   app.records.push({ feeling: 'Earlier', color: 'Red' });
   app.elements.get('owner-notes').value = '="quoted", note';
   select(app);
@@ -330,17 +552,54 @@ test('final popup downloads only the saved check-in and close keeps it saved', a
   const csv = await app.downloads[0].text();
   assert.deepEqual(app.downloadLinks, ['check-in.csv']);
   const saved = app.records[1];
-  assert.equal(csv, `"Local date","Local time","Mood","Color","Notes"\r\n"${saved.localDate.replace(/"/g, '""')}","${saved.localTime.replace(/"/g, '""')}","Happy","Blue","'=""quoted"", note"`);
+  assert.equal(csv, `"Local date","Local time","Mood","Color","Notes","Approximate location (Google Maps link)","Local date and time","Device / browser","Latitude","Longitude","Accuracy meters","UTC timestamp","UTC minus local offset minutes"\r\n"${saved.localDate.replace(/"/g, '""')}","${saved.localTime.replace(/"/g, '""')}","Happy","Blue","'=""quoted"", note","https://www.google.com/maps/search/?api=1&query=42.12%2C-71.34","${saved.localDateTime.replace(/"/g, '""')}","Example Device Browser","42.12","-71.34","10","${saved.timestamp}","${saved.timeZoneOffsetMinutes}"`);
   assert.equal(app.records.length, 2);
-  assert.equal(app.records[1].pendingDownload, undefined);
+  assert.equal(app.records[1].pendingDownload, true);
   assert.match(app.elements.get('download-check-in-status').textContent, /download started/i);
   assert.equal(app.elements.get('download-choice-dialog').open, true);
   assert.match(html, /<h2 id="download-choice-heading">You are appreciated<\/h2>/);
-  app.elements.get('save-downloaded-data').click();
+  await app.elements.get('save-downloaded-data').click();
   assert.equal(app.records.length, 2);
+  assert.equal(app.records[1].pendingDownload, undefined);
   app.elements.get('close-thanks').click();
   assert.equal(app.records.length, 2);
   assert.equal(app.elements.get('closed').hidden, false);
+});
+
+test('check-in download leaves the location link blank when coordinates are unavailable', async () => {
+  const app = createApp();
+  select(app);
+  app.elements.get('save-check-in').click();
+  app.getRequest().success({ coords: { latitude: NaN, longitude: undefined, accuracy: 10 } });
+  await flush();
+  await app.elements.get('download-check-in').click();
+  const csv = await app.downloads[0].text();
+  assert.match(csv, /"Happy","Blue","","","[^"]+","Not available","","","10"/);
+});
+
+test('an unverified download remains queued and saved across app launches until explicitly cleared', async () => {
+  const records = [];
+  const app = createApp({ records });
+  select(app);
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  await app.elements.get('download-check-in').click();
+  assert.equal(records[0].pendingDownload, true);
+  app.elements.get('keep-pending-data').click();
+  assert.equal(records[0].pendingDownload, true);
+  assert.equal(records.length, 1);
+  assert.equal(app.elements.has('clear-history'), false);
+
+  const reopened = createApp({ records });
+  reopened.elements.get('open-history').click();
+  await flush();
+  assert.match(reopened.elements.get('history-status').textContent, /waiting to be downloaded/i);
+  await reopened.elements.get('download-history').click();
+  assert.equal(records.length, 1);
+  assert.equal(records[0].pendingDownload, true);
+  await reopened.elements.get('clear-downloaded-data').click();
+  assert.equal(records.length, 0);
 });
 
 test('download failure leaves the check-in saved and reports an error', async () => {
@@ -369,6 +628,20 @@ test('clearing downloaded data removes only the downloaded check-in', async () =
   assert.equal(app.records.length, 1);
   assert.equal(app.records[0].feeling, 'Earlier');
   assert.equal(app.elements.get('download-choice-dialog').open, false);
+});
+
+test('clearing an export does not delete check-ins created after its snapshot', async () => {
+  const app = createApp();
+  select(app);
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  await app.elements.get('download-history').click();
+  app.records.push({ feeling: 'New', pendingDownload: true });
+  await app.elements.get('clear-downloaded-data').click();
+  assert.equal(app.records.length, 1);
+  assert.equal(app.records[0].feeling, 'New');
+  assert.equal(app.records[0].pendingDownload, true);
 });
 
 test('saves feeling, color, local time and location only after permission succeeds', async () => {
@@ -403,14 +676,14 @@ test('saves feeling, color, local time and location only after permission succee
   const csv = await app.downloads[0].text();
   assert.match(csv, /Local date","Local time","Mood","Color","Device \/ browser/);
   assert.match(csv, /"UTC minus local offset minutes","Notes"/);
+  assert.match(csv, /"Notes","Local date and time"/);
+  assert.ok(csv.includes(`"${entry.localDateTime}"`));
   assert.match(csv, /"Happy","Blue","Example Device Browser","42\.12","-71\.34","10".*"Talked about the playground\."/);
   assert.match(csv, /"Happy","Blue","Example Device Browser","42\.12","-71\.34","10"/);
   assert.deepEqual(app.downloadLinks, ['checkins.csv']);
   await flush();
-  assert.equal(app.records[0].pendingDownload, undefined);
-  app.elements.get('save-downloaded-data').click();
-  app.elements.get('clear-history').click();
-  await flush();
+  assert.equal(app.records[0].pendingDownload, true);
+  await app.elements.get('clear-downloaded-data').click();
   assert.equal(app.records.length, 0);
 });
 
@@ -528,26 +801,54 @@ test('unsupported or insecure location does not save', () => {
   }
 });
 
-test('migrates check-ins from earlier local storage and deletes them when cleared', async () => {
+test('migrates earlier check-ins and clears them only after export', async () => {
   const entry = { feeling: 'Happy', color: 'Blue', localDateTime: 'Today', latitude: 42, longitude: -71, accuracyMeters: 10 };
   const app = createApp({ legacy: [entry] });
   app.elements.get('open-history').click();
   await flush();
   assert.equal(app.records.length, 1);
   assert.equal(app.storage.size, 0);
-  app.elements.get('clear-history').click();
-  await flush();
+  await app.elements.get('download-history').click();
+  assert.equal(app.records.length, 1);
+  await app.elements.get('clear-downloaded-data').click();
   assert.equal(app.records.length, 0);
 });
 
-test('install setup requests location only when asked and does not save it', () => {
+test('install flow opens a browser location page and does not save a location', () => {
   const app = createApp();
   app.elements.get('install-button').click();
   assert.equal(app.getRequest(), undefined);
+  assert.deepEqual(app.openedPages, [{ url: './location-setup.html', target: '_blank' }]);
+  assert.match(app.elements.get('install-instructions').textContent, /select Done, then select Install app again/i);
   app.elements.get('install-location').click();
-  app.getRequest().success(position());
-  assert.match(app.elements.get('install-location-status').textContent, /location is available/i);
+  assert.equal(app.getRequest(), undefined);
+  assert.equal(app.openedPages.length, 2);
+  assert.match(app.elements.get('install-location-status').textContent, /browser page opened/i);
   assert.equal(app.records.length, 0);
+});
+
+test('location webpage requests permission only after a tap and does not save or upload coordinates', () => {
+  const elements = new Map();
+  for (const id of ['allow-location', 'location-status']) {
+    elements.set(id, { disabled: false, textContent: '', events: {}, addEventListener(name, callback) { this.events[name] = callback; } });
+  }
+  let request;
+  const navigator = {
+    geolocation: {
+      getCurrentPosition(success, failure, settings) { request = { success, failure, settings }; }
+    }
+  };
+  vm.runInNewContext(locationSetupScript, {
+    document: { getElementById(id) { return elements.get(id); } },
+    navigator,
+    window: { isSecureContext: true }
+  });
+
+  assert.equal(request, undefined);
+  elements.get('allow-location').events.click();
+  assert.ok(request);
+  request.success(position());
+  assert.match(elements.get('location-status').textContent, /did not save or upload the coordinates/i);
 });
 
 test('install invitation appears once per session and not in standalone mode', () => {
@@ -566,7 +867,7 @@ test('install invitation appears once per session and not in standalone mode', (
   assert.equal(installed.elements.get('install-button').hidden, true);
 });
 
-test('popup launches the native install prompt directly on user action', async () => {
+test('native install prompt launches after browser location setup', async () => {
   const app = createApp();
   let prompted = 0;
   let prevented = false;
@@ -576,6 +877,9 @@ test('popup launches the native install prompt directly on user action', async (
   });
   app.handlers.load();
   app.elements.get('invite-install').click();
+  assert.equal(prompted, 0);
+  app.elements.get('install-done').click();
+  app.elements.get('install-button').click();
   assert.equal(prevented, true);
   assert.equal(prompted, 1);
   await flush();
@@ -589,6 +893,8 @@ test('install help appears immediately when native prompt is unavailable', () =>
   const app = createApp({ userAgent: 'iPhone', platform: 'iPhone' });
   app.handlers.load();
   app.elements.get('invite-install').click();
+  app.elements.get('install-done').click();
+  app.elements.get('install-button').click();
   assert.equal(app.elements.get('install-dialog').open, true);
   assert.match(app.elements.get('install-instructions').textContent, /Share.*Add to Home Screen/);
 });
@@ -596,14 +902,221 @@ test('install help appears immediately when native prompt is unavailable', () =>
 test('dismissed and failed native prompts do not claim installation succeeded', async () => {
   const dismissed = createApp();
   dismissed.handlers.beforeinstallprompt({ preventDefault() {}, prompt() { return Promise.resolve({ outcome: 'dismissed' }); } });
+  dismissed.elements.get('install-button').click();
+  dismissed.elements.get('install-done').click();
   await dismissed.elements.get('install-button').click();
-  assert.equal(dismissed.elements.get('install-dialog').open, undefined);
+  assert.equal(dismissed.elements.get('install-dialog').open, false);
   assert.equal(dismissed.elements.get('install-button').hidden, false);
   const failed = createApp();
   failed.handlers.beforeinstallprompt({ preventDefault() {}, prompt() { return Promise.reject(new Error('unavailable')); } });
+  failed.elements.get('install-button').click();
+  failed.elements.get('install-done').click();
   await failed.elements.get('install-button').click();
   assert.match(failed.elements.get('install-instructions').textContent, /could not open.*install/i);
   assert.equal(failed.elements.get('install-dialog').open, true);
+});
+
+test('location setup popup failure explains how to continue installing', () => {
+  const app = createApp({ popupBlocked: true });
+  app.elements.get('install-button').click();
+  assert.match(app.elements.get('install-instructions').textContent, /could not be opened.*continue without location setup/i);
+  app.elements.get('install-done').click();
+  app.elements.get('install-button').click();
+  assert.match(app.elements.get('install-instructions').textContent, /Open your browser menu/);
+});
+
+test('installed app applies a waiting update before showing the demo or check-in', async () => {
+  const serviceEvents = {};
+  const messages = [];
+  let reloaded = false;
+  const registration = {
+    waiting: { postMessage(message) { messages.push(message.type); } },
+    addEventListener() {}
+  };
+  const serviceWorker = {
+    controller: {},
+    addEventListener(name, callback) { serviceEvents[name] = callback; },
+    register(url, options) {
+      assert.equal(url, './service-worker.js');
+      assert.equal(options.updateViaCache, 'none');
+      return Promise.resolve(registration);
+    }
+  };
+  const app = createApp({ standalone: true, serviceWorker, onReload() { reloaded = true; } });
+  app.handlers.load();
+  assert.equal(app.elements.get('startup-update-dialog').open, true);
+  assert.equal(app.elements.get('demo-invitation').open, undefined);
+  await flush();
+  assert.deepEqual(messages, ['SKIP_WAITING']);
+  assert.match(app.elements.get('startup-update-status').textContent, /updating.*few moments/i);
+  serviceEvents.controllerchange();
+  assert.equal(reloaded, true);
+});
+
+test('installed app checks for updates and waits for a new worker to install', async () => {
+  const registrationEvents = {};
+  const workerEvents = {};
+  const serviceEvents = {};
+  const messages = [];
+  let resolveCheck;
+  let reloaded = false;
+  const worker = {
+    state: 'installing',
+    addEventListener(name, callback) { workerEvents[name] = callback; },
+    postMessage(message) { messages.push(message.type); }
+  };
+  const registration = {
+    active: {}, waiting: null, installing: null,
+    addEventListener(name, callback) { registrationEvents[name] = callback; },
+    update() { return new Promise(resolve => { resolveCheck = resolve; }); }
+  };
+  const serviceWorker = {
+    controller: {},
+    addEventListener(name, callback) { serviceEvents[name] = callback; },
+    register() { return Promise.resolve(registration); }
+  };
+  const app = createApp({ standalone: true, serviceWorker, onReload() { reloaded = true; } });
+  app.handlers.load();
+  await flush();
+  registration.installing = worker;
+  registrationEvents.updatefound();
+  resolveCheck();
+  await flush();
+  assert.equal(app.elements.get('startup-update-dialog').open, true);
+  assert.deepEqual(messages, []);
+  registration.installing = null;
+  registration.waiting = worker;
+  worker.state = 'installed';
+  workerEvents.statechange();
+  assert.deepEqual(messages, ['SKIP_WAITING']);
+  serviceEvents.controllerchange();
+  assert.equal(reloaded, true);
+});
+
+test('installed app reloads after activating an update when the page has no controller', async () => {
+  const workerEvents = {};
+  const messages = [];
+  let reloaded = false;
+  const worker = {
+    state: 'installed',
+    addEventListener(name, callback) { workerEvents[name] = callback; },
+    postMessage(message) { messages.push(message.type); }
+  };
+  const registration = { active: {}, waiting: worker, installing: null, addEventListener() {} };
+  const serviceWorker = { controller: null, addEventListener() {}, register() { return Promise.resolve(registration); } };
+  const app = createApp({ standalone: true, serviceWorker, onReload() { reloaded = true; } });
+  app.handlers.load();
+  await flush();
+  assert.deepEqual(messages, ['SKIP_WAITING']);
+  worker.state = 'activated';
+  workerEvents.statechange();
+  assert.equal(reloaded, true);
+});
+
+test('installed app starts normally after a successful check with no update', async () => {
+  let checks = 0;
+  const registration = {
+    active: {}, waiting: null, installing: null, addEventListener() {},
+    update() { checks++; return Promise.resolve(); }
+  };
+  const serviceWorker = { controller: {}, addEventListener() {}, register() { return Promise.resolve(registration); } };
+  const app = createApp({ standalone: true, serviceWorker });
+  app.handlers.load();
+  assert.equal(app.elements.get('demo-invitation').open, undefined);
+  await flush();
+  assert.equal(checks, 1);
+  assert.equal(app.elements.get('startup-update-dialog').open, false);
+  assert.equal(app.elements.get('demo-invitation').open, true);
+});
+
+test('installed app opens without waiting for an update when offline', async () => {
+  let checks = 0;
+  const registration = {
+    active: {}, waiting: null, installing: null, addEventListener() {},
+    update() { checks++; return Promise.resolve(); }
+  };
+  const serviceWorker = { controller: {}, addEventListener() {}, register() { return Promise.resolve(registration); } };
+  const app = createApp({ standalone: true, online: false, serviceWorker });
+  app.handlers.load();
+  await flush();
+  assert.equal(app.elements.get('connection-status').textContent, 'Offline');
+  assert.equal(app.elements.get('startup-update-dialog').open, undefined);
+  assert.equal(app.elements.get('demo-invitation').open, true);
+  assert.equal(checks, 0);
+});
+
+test('failed startup check offers continuing without an update', async () => {
+  const registration = {
+    active: {}, waiting: null, installing: null, addEventListener() {},
+    update() { return Promise.reject(new Error('offline')); }
+  };
+  const serviceWorker = { controller: {}, addEventListener() {}, register() { return Promise.resolve(registration); } };
+  const app = createApp({ standalone: true, serviceWorker });
+  app.handlers.load();
+  await flush();
+  assert.match(app.elements.get('startup-update-status').textContent, /could not check/i);
+  assert.equal(app.elements.get('startup-continue').hidden, false);
+  app.elements.get('startup-continue').click();
+  assert.equal(app.elements.get('startup-update-dialog').open, false);
+  assert.equal(app.elements.get('demo-invitation').open, true);
+});
+
+test('a failed worker installation is reported even if the update check resolves', async () => {
+  const registrationEvents = {};
+  const workerEvents = {};
+  let resolveCheck;
+  const worker = { state: 'installing', addEventListener(name, callback) { workerEvents[name] = callback; } };
+  const registration = {
+    active: {}, waiting: null, installing: null,
+    addEventListener(name, callback) { registrationEvents[name] = callback; },
+    update() { return new Promise(resolve => { resolveCheck = resolve; }); }
+  };
+  const serviceWorker = { controller: {}, addEventListener() {}, register() { return Promise.resolve(registration); } };
+  const app = createApp({ standalone: true, serviceWorker });
+  app.handlers.load();
+  await flush();
+  registration.installing = worker;
+  registrationEvents.updatefound();
+  registration.installing = null;
+  worker.state = 'redundant';
+  workerEvents.statechange();
+  resolveCheck();
+  await flush();
+  assert.equal(app.elements.get('startup-update-dialog').open, true);
+  assert.match(app.elements.get('startup-update-status').textContent, /could not be installed/i);
+  app.elements.get('startup-continue').click();
+  assert.equal(app.elements.get('demo-invitation').open, true);
+});
+
+test('continuing after a slow update prevents a late activation from interrupting a check-in', async () => {
+  const timers = [];
+  const serviceEvents = {};
+  let reloaded = false;
+  const registration = {
+    waiting: { postMessage() {} },
+    addEventListener() {}
+  };
+  const serviceWorker = {
+    controller: {},
+    addEventListener(name, callback) { serviceEvents[name] = callback; },
+    register() { return Promise.resolve(registration); }
+  };
+  const app = createApp({
+    standalone: true, serviceWorker, onReload() { reloaded = true; },
+    setTimeout(callback) { timers.push(callback); return timers.length; },
+    clearTimeout() {}
+  });
+  app.handlers.load();
+  await flush();
+  timers[0]();
+  assert.match(app.elements.get('startup-update-status').textContent, /taking longer/i);
+  app.elements.get('startup-continue').click();
+  serviceEvents.controllerchange();
+  assert.equal(reloaded, false);
+  assert.equal(app.elements.get('update-notice').hidden, false);
+  assert.match(app.elements.get('update-status').textContent, /reload.*after finishing/i);
+  app.elements.get('update-app').click();
+  assert.equal(reloaded, true);
 });
 
 test('offers a waiting update, applies it on request, and keeps saved check-ins', async () => {
@@ -637,9 +1150,10 @@ test('offers a waiting update, applies it on request, and keeps saved check-ins'
   await flush();
   assert.match(app.elements.get('history-status').textContent, /waiting to be downloaded/i);
   await app.elements.get('download-history').click();
-  assert.equal(app.records[0].pendingDownload, undefined);
+  assert.equal(app.records[0].pendingDownload, true);
   assert.equal(app.records.length, 1);
-  app.elements.get('save-downloaded-data').click();
+  await app.elements.get('save-downloaded-data').click();
+  assert.equal(app.records[0].pendingDownload, undefined);
 });
 
 test('offers a newly installed update but not a first offline installation', async () => {

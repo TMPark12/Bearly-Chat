@@ -8,6 +8,7 @@ test('caches the app and serves its pages and styles when offline', async () => 
   const handlers = {};
   const files = new Map([
     ['./index.html', 'cached page'],
+    ['./location-setup.html', 'cached location page'],
     ['./style.css', 'cached styles']
   ]);
   let precached;
@@ -26,12 +27,22 @@ test('caches the app and serves its pages and styles when offline', async () => 
   handlers.install({ waitUntil(promise) { pending = promise; } });
   await pending;
   assert.ok(precached.includes('./index.html'));
+  assert.ok(precached.includes('./location-setup.html'));
   assert.ok(precached.includes('./style.css'));
+  assert.ok(precached.includes('./manifest.webmanifest'));
+  assert.ok(precached.includes('./icons/icon-180.png'));
+  assert.ok(precached.includes('./icons/icon-192.png'));
+  assert.ok(precached.includes('./icons/icon-512.png'));
   handlers.fetch({
     request: { method: 'GET', url: 'https://example.test/', mode: 'navigate', path: './' },
     respondWith(promise) { pending = promise; }
   });
   assert.equal(await pending, 'cached page');
+  handlers.fetch({
+    request: { method: 'GET', url: 'https://example.test/location-setup.html', mode: 'navigate', path: './location-setup.html' },
+    respondWith(promise) { pending = promise; }
+  });
+  assert.equal(await pending, 'cached location page');
   handlers.fetch({
     request: { method: 'GET', url: 'https://example.test/style.css', mode: 'no-cors', path: './style.css' },
     respondWith(promise) { pending = promise; }

@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#f6f7f2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Toddle-Cation">
-  <title>How do you feel today?</title>
+  <meta name="apple-mobile-web-app-title" content="Bearly Chat">
+  <title>Bearly Chat - How do you feel today?</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -15,10 +15,11 @@
 <body>
   <div class="app" id="app">
     <header class="topbar">
-      <div class="brand"><img class="brand-mark" src="./icons/icon-180.png" alt=""> Toddle-Cation</div>
+      <div class="brand"><img class="brand-mark" src="./icons/icon-180.png" alt=""> Bearly Chat</div>
       <div class="header-actions">
+        <span class="connection-status" id="connection-status" role="status" aria-live="polite">Checking connection</span>
         <button class="help-button" id="open-help" type="button"><span aria-hidden="true">?</span> Help</button>
-        <button class="install-button" id="install-button" type="button" aria-label="Install Toddle-Cation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"/></svg><span>Install app</span></button>
+        <button class="install-button" id="install-button" type="button" aria-label="Install Bearly Chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"/></svg><span>Install app</span></button>
         <div class="step"><span id="step-text">1 of 3</span><span class="step-dots" aria-hidden="true"><span id="dot-one" class="active"></span><span id="dot-two"></span><span id="dot-three"></span></span></div>
       </div>
     </header>
@@ -36,6 +37,15 @@
           <button class="sound" type="button" data-speech="How do you feel?" aria-label="Listen to the question: How do you feel?">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/></svg> Hear the question
           </button>
+          <div class="voice-settings">
+            <label for="voice-preference">Voice preference</label>
+            <select id="voice-preference" aria-describedby="voice-status">
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+            <button class="dialog-secondary" id="preview-voice" type="button">Hear voice</button>
+            <p id="voice-status" role="status" aria-live="polite"></p>
+          </div>
         </div>
         <div class="feelings">
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😊</span>Happy</button>
@@ -90,14 +100,33 @@
     </main>
     <footer><button class="history-button" id="open-history" type="button">Saved check-ins</button><br>Made for little feelings and big conversations.</footer>
   </div>
+  <dialog class="detail-dialog" id="startup-update-dialog" aria-labelledby="startup-update-heading" aria-describedby="startup-update-status">
+    <h2 id="startup-update-heading">Checking for updates</h2>
+    <p id="startup-update-status" role="status" aria-live="polite">Checking for updates. This should only take a few moments.</p>
+    <button class="close-thanks" id="startup-continue" type="button" hidden>Continue without updating</button>
+  </dialog>
+  <dialog class="detail-dialog feeling-dialog" id="feeling-dialog" aria-labelledby="feeling-confirm-heading">
+    <span class="feeling-emoji" id="feeling-confirm-emoji" aria-hidden="true"></span>
+    <h2 id="feeling-confirm-heading"></h2>
+    <p>Is this how you feel?</p>
+    <button class="close-thanks" id="confirm-feeling" type="button">Yes</button>
+    <button class="dialog-secondary" id="decline-feeling" type="button" autofocus>No</button>
+  </dialog>
+  <dialog class="detail-dialog" id="color-dialog" aria-labelledby="color-confirm-heading">
+    <span class="color-confirm-swatch" id="color-confirm-swatch" aria-hidden="true"></span>
+    <h2 id="color-confirm-heading"></h2>
+    <p>Is this the color you choose?</p>
+    <button class="close-thanks" id="confirm-color" type="button">Yes</button>
+    <button class="dialog-secondary" id="decline-color" type="button" autofocus>No</button>
+  </dialog>
   <dialog class="detail-dialog" id="demo-invitation" aria-labelledby="demo-invitation-heading">
-    <h2 id="demo-invitation-heading">Welcome to Toddle-Cation</h2>
+    <h2 id="demo-invitation-heading">Welcome to Bearly Chat</h2>
     <p>Would you like a guided demo? It won't save a check-in or request your location.</p>
     <button class="close-thanks" id="invite-demo" type="button">Start demo</button>
     <button class="dialog-secondary" id="dismiss-demo" type="button">Not now</button>
   </dialog>
   <dialog class="detail-dialog" id="help-dialog" aria-labelledby="help-heading">
-    <h2 id="help-heading">How to use Toddle-Cation</h2>
+    <h2 id="help-heading">How to use Bearly Chat</h2>
     <p>Explore a guided demo without saving a check-in or sharing your location.</p>
     <button class="close-thanks" id="start-demo" type="button">Start demo</button>
     <p>For a copy to keep, choose “Save as PDF” in your device's print options, if available.</p>
@@ -105,20 +134,20 @@
     <button class="dialog-secondary" id="close-help" type="button">Done</button>
   </dialog>
   <dialog class="detail-dialog demo-dialog" id="demo-dialog" aria-labelledby="demo-heading">
-    <h2 id="demo-heading">Toddle-Cation demo</h2>
+    <h2 id="demo-heading">Bearly Chat demo</h2>
     <p class="demo-intro">A practice walkthrough. Nothing you do here is saved or requests your location.</p>
     <p class="demo-progress" id="demo-progress" aria-live="polite"></p>
     <div class="demo-steps">
       <section class="demo-step" id="demo-step-1" aria-labelledby="demo-step-heading-1">
         <h3 id="demo-step-heading-1" tabindex="-1">1. Pick a feeling</h3>
         <div class="demo-example" aria-hidden="true"><span>😊 Happy</span><span>😢 Sad</span><span>😠 Mad</span></div>
-        <p>Ask the child to choose the face that matches how they feel. The choices appear in a different order each time the app opens.</p>
+        <p>Ask the child to choose the face that matches how they feel. In the popup, choose <strong>Yes</strong> to continue or <strong>No</strong> to choose another face. The choices appear in a different order each time the app opens.</p>
         <p>Use <strong>Hear the question</strong> to play the question again when a device voice is available.</p>
       </section>
       <section class="demo-step" id="demo-step-2" aria-labelledby="demo-step-heading-2" hidden>
         <h3 id="demo-step-heading-2" tabindex="-1">2. Pick a color</h3>
         <div class="demo-example demo-colors" aria-hidden="true"><span>Red</span><span>Blue</span><span>Yellow</span></div>
-        <p>Choose any color that feels right. Color choices also appear in a different order each time the app opens.</p>
+        <p>Choose any color that feels right. In the popup, choose <strong>Yes</strong> to continue or <strong>No</strong> to choose another color. Color choices also appear in a different order each time the app opens.</p>
         <p>Select <strong>Back to feelings</strong> to change the feeling.</p>
       </section>
       <section class="demo-step" id="demo-step-3" aria-labelledby="demo-step-heading-3" hidden>
@@ -133,8 +162,8 @@
       </section>
       <section class="demo-step" id="demo-step-5" aria-labelledby="demo-step-heading-5" hidden>
         <h3 id="demo-step-heading-5" tabindex="-1">5. Download or review</h3>
-        <p>After saving, <strong>Save and Download Check-In</strong> downloads a CSV with the date, time, mood, color, and notes. <strong>Close</strong> keeps the saved check-in on the device without downloading it. The download stays available in Saved check-ins after an app update.</p>
-        <p>Choose <strong>Saved check-ins</strong> to review, export, or delete records. The full export includes location and device information, so keep it private. Records do not sync between devices or browsers.</p>
+        <p>After saving, <strong>Save and Download Check-In</strong> downloads a CSV with the saved check-in, including location and device information. Its approximate location link contains the recorded coordinates; opening the link shares those coordinates with Google Maps. <strong>Close</strong> keeps the saved check-in on the device without downloading it.</p>
+        <p>Choose <strong>Saved check-ins</strong> to review or export records. After downloading, verify the file was saved before choosing whether to clear the downloaded records. Exports contain location and device information, so keep them private. Records do not sync between devices or browsers.</p>
       </section>
     </div>
     <p class="dialog-status" id="demo-print-status" role="status" aria-live="polite"></p>
@@ -159,35 +188,36 @@
     <p class="dialog-status" id="history-status" role="status" aria-live="polite"></p>
     <ol class="history-list" id="history-list"></ol>
     <button class="dialog-secondary" id="download-history" type="button">Export checkins.csv</button>
-    <button class="dialog-secondary" id="clear-history" type="button">Clear saved check-ins</button>
     <button class="close-thanks" id="close-history" type="button">Done</button>
   </dialog>
   <dialog id="thanks" aria-labelledby="thanks-heading">
     <span class="thank-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></span>
     <h2 id="thanks-heading"><button class="thank-message" id="thank-message" type="button" aria-label="Thank You, hear again">Thank You</button></h2>
     <p>Your check-in has been saved on this device.</p>
+    <p>The check-in download includes location and device information and an approximate Google Maps link containing your recorded coordinates. Opening it shares those coordinates with Google.</p>
     <p class="dialog-status" id="download-check-in-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="download-check-in" type="button">Save and Download Check-In</button>
     <button class="dialog-secondary" id="close-thanks" type="button">Close</button>
   </dialog>
   <dialog class="detail-dialog" id="download-choice-dialog" aria-labelledby="download-choice-heading">
     <h2 id="download-choice-heading">You are appreciated</h2>
-    <p>Your check-in data is ready. Would you like to clear the downloaded data from this device or save it for later?</p>
+    <p>Verify that your downloaded file was saved before clearing data. Browser downloads may be cancelled or fail after they start.</p>
     <p class="dialog-status" id="download-choice-status" role="status" aria-live="polite"></p>
-    <button class="close-thanks" id="clear-downloaded-data" type="button">Clear downloaded data</button>
-    <button class="dialog-secondary" id="save-downloaded-data" type="button">Save for later</button>
+    <button class="close-thanks" id="clear-downloaded-data" type="button">File saved - clear downloaded data</button>
+    <button class="dialog-secondary" id="save-downloaded-data" type="button">File saved - keep data</button>
+    <button class="dialog-secondary" id="keep-pending-data" type="button" autofocus>Not sure - keep data</button>
   </dialog>
   <dialog class="install-dialog" id="install-invitation" aria-labelledby="install-invitation-heading">
-    <h2 id="install-invitation-heading">Install Toddle-Cation</h2>
+    <h2 id="install-invitation-heading">Install Bearly Chat</h2>
     <p>Add the app to your home screen or app list for easy access, including offline use after opening it online.</p>
     <button class="close-thanks" id="invite-install" type="button">Install app</button>
     <button class="dialog-secondary" id="invite-dismiss" type="button">Not now</button>
   </dialog>
   <dialog class="install-dialog" id="install-dialog" aria-labelledby="install-heading">
-    <h2 id="install-heading">Install Toddle-Cation</h2>
+    <h2 id="install-heading">Install Bearly Chat</h2>
     <p id="install-instructions" role="status"></p>
-    <p>Optional: allow location for future check-ins. Your browser will ask for permission; you may also need to turn on location in your device settings. The installed app may ask again.</p>
-    <button class="dialog-secondary" id="install-location" type="button">Allow location</button>
+    <p>Optional: open a browser page to allow location for future check-ins. The installed app may ask again.</p>
+    <button class="dialog-secondary" id="install-location" type="button">Open location webpage</button>
     <p class="dialog-status" id="install-location-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="install-done" type="button">Done</button>
   </dialog>
@@ -199,6 +229,8 @@
     const colorsScreen = document.getElementById('colors-screen');
     const notesScreen = document.getElementById('notes-screen');
     const thanks = document.getElementById('thanks');
+    const feelingDialog = document.getElementById('feeling-dialog');
+    const colorDialog = document.getElementById('color-dialog');
     const speechSupported = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
     const installButton = document.getElementById('install-button');
     const installInvitation = document.getElementById('install-invitation');
@@ -213,15 +245,30 @@
     const historyList = document.getElementById('history-list');
     const cancelSaveButton = document.getElementById('cancel-save');
     const legacyStorageKey = 'toddle-cation-check-ins';
+    const voicePreferenceKey = 'toddle-cation-voice-preference';
     let installPrompt = null;
     let selectedFeeling = '';
+    let pendingFeeling = null;
     let selectedColor = '';
+    let pendingColor = null;
     let pendingCheckIn = null;
     let savedCheckIn = null;
     let savedCheckInKey;
     let locationRequest = 0;
-    let installLocationRequest = 0;
+    let locationSetupOpened = false;
     let savingCheckIn = false;
+    let startupUpdating = false;
+    let pageLoaded = false;
+
+    function updateConnectionStatus() {
+      const status = document.getElementById('connection-status');
+      const connection = navigator.onLine === true ? 'online' : navigator.onLine === false ? 'offline' : 'unknown';
+      status.dataset.connection = connection;
+      status.textContent = connection === 'online' ? 'Online' : connection === 'offline' ? 'Offline' : 'Connection unknown';
+    }
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+    updateConnectionStatus();
 
     const helpDialog = document.getElementById('help-dialog');
     const demoInvitation = document.getElementById('demo-invitation');
@@ -309,7 +356,6 @@
     });
     installInvitation.addEventListener('cancel', () => speak('How do you feel?'));
     function showInstallHelp(instructions) {
-      installLocationButton.disabled = false;
       installLocationStatus.textContent = '';
       document.getElementById('install-instructions').textContent = instructions;
       installDialog.showModal();
@@ -325,6 +371,14 @@
     }
 
     installButton.addEventListener('click', async () => {
+      if (!locationSetupOpened) {
+        locationSetupOpened = true;
+        const page = window.open('./location-setup.html', '_blank');
+        showInstallHelp(page
+          ? 'A browser page opened to allow location. After you finish or skip that step, return here, select Done, then select Install app again. Location permission is optional.'
+          : 'The location webpage could not be opened. Allow popups and try again, or select Done and Install app again to continue without location setup.');
+        return;
+      }
       if (!installPrompt) {
         showInstallHelp(installInstructions());
         return;
@@ -336,7 +390,7 @@
         const result = await prompt.prompt();
         const choice = result || await prompt.userChoice;
         if (choice && choice.outcome === 'accepted') {
-          showInstallHelp('Installation started. Open Toddle-Cation from your home screen or app list when it is ready.');
+          showInstallHelp('Installation started. Open Bearly Chat from your home screen or app list when it is ready.');
         }
       } catch (error) {
         console.error('Unable to open the install prompt:', error);
@@ -345,45 +399,83 @@
         installButton.disabled = false;
       }
     });
-    installDialog.addEventListener('close', () => { installLocationRequest++; });
     installLocationButton.addEventListener('click', () => {
-      if (!window.isSecureContext || !navigator.geolocation) {
-        installLocationStatus.textContent = 'Location is unavailable. Open the app on HTTPS or localhost and enable location on your device.';
-        return;
-      }
-      const request = ++installLocationRequest;
-      installLocationButton.disabled = true;
-      installLocationStatus.textContent = 'Waiting for location permission...';
-      navigator.geolocation.getCurrentPosition(() => {
-        if (request !== installLocationRequest || !installDialog.open) return;
-        installLocationButton.disabled = false;
-        installLocationStatus.textContent = 'Location is available for this browser. Check-ins will ask for your location when saved.';
-      }, error => {
-        if (request !== installLocationRequest || !installDialog.open) return;
-        installLocationButton.disabled = false;
-        installLocationStatus.textContent = error.code === 1
-          ? 'Location permission was denied. Allow location in your browser and device settings, then try again.'
-          : 'Could not get your location. Check your device location settings and try again.';
-      }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+      const page = window.open('./location-setup.html', '_blank');
+      installLocationStatus.textContent = page
+        ? 'A browser page opened. Allow location there, then return to Bearly Chat.'
+        : 'The webpage could not be opened. Allow popups and try again.';
     });
     document.getElementById('install-done').addEventListener('click', () => installDialog.close());
     if ('serviceWorker' in navigator && window.isSecureContext) {
       const updateNotice = document.getElementById('update-notice');
       const updateButton = document.getElementById('update-app');
       const updateStatus = document.getElementById('update-status');
+      const startupDialog = document.getElementById('startup-update-dialog');
+      const startupStatus = document.getElementById('startup-update-status');
+      const startupContinue = document.getElementById('startup-continue');
       let registration;
       let updating = false;
       let updateTimer;
+      let startupTimer;
+      let checkFinished = false;
+      let checkFailed = false;
+      let reloadRequired = false;
+      let reloadStarted = false;
+      const watchedWorkers = new Set();
+
+      function reloadForUpdate() {
+        if (reloadStarted) return;
+        reloadStarted = true;
+        clearTimeout(startupTimer);
+        clearTimeout(updateTimer);
+        window.location.reload();
+      }
+      function finishStartup() {
+        if (!startupUpdating) return;
+        startupUpdating = false;
+        clearTimeout(startupTimer);
+        startupDialog.close();
+        if (pageLoaded) startApp();
+      }
+      function startupFailure(message) {
+        if (!startupUpdating) return;
+        startupStatus.textContent = message;
+        startupContinue.hidden = false;
+      }
+      if (isInstalled && navigator.onLine !== false) {
+        startupUpdating = true;
+        startupDialog.showModal();
+        startupDialog.addEventListener('cancel', event => event.preventDefault());
+        startupContinue.addEventListener('click', () => {
+          if (updating) {
+            clearTimeout(updateTimer);
+            updating = false;
+            updateButton.disabled = false;
+          }
+          finishStartup();
+        });
+        startupTimer = setTimeout(() => {
+          startupFailure('The update check is taking longer than expected. You can continue without updating, or keep waiting.');
+        }, 15000);
+      }
 
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (updating) {
-          clearTimeout(updateTimer);
-          window.location.reload();
+          reloadForUpdate();
+        } else if (startupUpdating && navigator.serviceWorker.controller) {
+          reloadForUpdate();
         } else {
-          updateNotice.hidden = true;
+          reloadRequired = true;
+          updateNotice.hidden = false;
+          updateStatus.textContent = 'An update was installed. Reload to use it after finishing your check-in.';
         }
       });
-      updateButton.addEventListener('click', () => {
+      function applyUpdate() {
+        if (updating) return;
+        if (reloadRequired) {
+          reloadForUpdate();
+          return;
+        }
         if (!registration || !registration.waiting) {
           updateStatus.textContent = 'The update is no longer available. Reload the app to check again.';
           return;
@@ -391,48 +483,165 @@
         updating = true;
         updateButton.disabled = true;
         updateStatus.textContent = 'Updating...';
+        if (startupUpdating) startupStatus.textContent = 'Updating the app. This should only take a few moments.';
+        const worker = registration.waiting;
+        if (startupUpdating && !navigator.serviceWorker.controller) {
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'activated' && updating && startupUpdating) reloadForUpdate();
+          });
+        }
         updateTimer = setTimeout(() => {
           updating = false;
           updateButton.disabled = false;
           updateStatus.textContent = 'The update did not finish. Please try again.';
+          startupFailure('The update is taking longer than expected. You can continue without updating, or keep waiting.');
         }, 15000);
         try {
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          worker.postMessage({ type: 'SKIP_WAITING' });
         } catch (error) {
           clearTimeout(updateTimer);
           updating = false;
           updateButton.disabled = false;
           updateStatus.textContent = 'Could not start the update. Please try again.';
           console.error('Unable to start the app update:', error);
+          startupFailure('Could not start the update. You can continue without updating.');
         }
-      });
-      navigator.serviceWorker.register('./service-worker.js').then(result => {
+      }
+      updateButton.addEventListener('click', applyUpdate);
+      navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' }).then(result => {
         registration = result;
         function showWaitingUpdate() {
-          if (registration.waiting && navigator.serviceWorker.controller) updateNotice.hidden = false;
+          if (registration.waiting && (startupUpdating || navigator.serviceWorker.controller)) {
+            updateNotice.hidden = false;
+            if (startupUpdating) applyUpdate();
+          }
+        }
+        function finishCheckIfReady() {
+          if (!startupUpdating || !checkFinished || checkFailed || updating || registration.waiting) return;
+          if (registration.installing && registration.installing.state === 'installing') return;
+          finishStartup();
         }
         function watchInstallingWorker() {
           const worker = registration.installing;
-          if (!worker) return;
-          worker.addEventListener('statechange', () => {
+          if (!worker || watchedWorkers.has(worker)) return;
+          watchedWorkers.add(worker);
+          function stateChanged() {
             if (worker.state === 'installed') showWaitingUpdate();
-          });
-          if (worker.state === 'installed') showWaitingUpdate();
+            if (worker.state === 'redundant' && startupUpdating) {
+              checkFailed = true;
+              startupFailure('The update could not be installed. You can continue without updating.');
+              return;
+            }
+            finishCheckIfReady();
+          }
+          worker.addEventListener('statechange', stateChanged);
+          stateChanged();
         }
         registration.addEventListener('updatefound', watchInstallingWorker);
         watchInstallingWorker();
         showWaitingUpdate();
-      }).catch(error => console.error('Unable to register the app for offline use:', error));
+        if (startupUpdating && !updating) {
+          if (!registration.active && !registration.waiting) {
+            checkFinished = true;
+            finishCheckIfReady();
+          } else {
+            registration.update().then(() => {
+              checkFinished = true;
+              watchInstallingWorker();
+              showWaitingUpdate();
+              finishCheckIfReady();
+            }).catch(error => {
+              console.error('Unable to check for app updates:', error);
+              startupFailure('Could not check for updates. You can continue without updating.');
+            });
+          }
+        }
+      }).catch(error => {
+        console.error('Unable to register the app for offline use:', error);
+        startupFailure('Could not check for updates. You can continue without updating.');
+      });
     }
+
+    const voicePreference = document.getElementById('voice-preference');
+    const previewVoice = document.getElementById('preview-voice');
+    const voiceStatus = document.getElementById('voice-status');
+    let activeVoice = null;
+    let voiceLocked = false;
+    let voiceStorageWarning = '';
+    voicePreference.value = 'female';
+    try {
+      const savedPreference = localStorage.getItem(voicePreferenceKey);
+      if (savedPreference === 'male' || savedPreference === 'female') voicePreference.value = savedPreference;
+    } catch (error) {
+      console.error('Unable to load voice preference:', error);
+      voiceStorageWarning = ' Voice preference could not be loaded from this device.';
+    }
+
+    function chooseDeviceVoice() {
+      const voices = window.speechSynthesis.getVoices();
+      const englishVoices = voices.filter(voice => /^en([-_]|$)/i.test(voice.lang));
+      const femaleNames = /\b(?:samantha|karen|moira|tessa|victoria|fiona|susan|zira|hazel|aria|jenny|female)\b|google us english/i;
+      const maleNames = /\b(?:daniel|alex|fred|tom|david|mark|guy|james|male)\b/i;
+      const matches = englishVoices.filter(voice => (voicePreference.value === 'male' ? maleNames : femaleNames).test(voice.name));
+      return {
+        voice: matches.find(voice => /enhanced|premium|neural|natural/i.test(voice.name)) || matches[0] || englishVoices[0] || voices[0] || null,
+        matched: matches.length > 0
+      };
+    }
+
+    function describeVoice(result) {
+      if (!speechSupported) {
+        voiceStatus.textContent = `Speech is unavailable in this browser.${voiceStorageWarning}`;
+      } else if (!result.voice) {
+        voiceStatus.textContent = `No device voices are listed. Speech will use the device's default voice if available. Choose Hear voice to retry when voices load.${voiceStorageWarning}`;
+      } else if (!result.matched) {
+        voiceStatus.textContent = `No matching ${voicePreference.value} voice was identified. Using ${result.voice.name} instead.${voiceStorageWarning}`;
+      } else {
+        voiceStatus.textContent = `Using ${result.voice.name}. Voice labels are based on device names and may not be accurate.${voiceStorageWarning}`;
+      }
+    }
+    let activeVoiceMatched = false;
+    function refreshVoiceStatus() {
+      if (!speechSupported) {
+        describeVoice({ voice: null, matched: false });
+      } else if (voiceLocked) {
+        describeVoice({ voice: activeVoice, matched: activeVoiceMatched });
+      } else {
+        describeVoice(chooseDeviceVoice());
+      }
+    }
+    voicePreference.disabled = !speechSupported;
+    previewVoice.disabled = !speechSupported;
+    voicePreference.addEventListener('change', () => {
+      voiceLocked = false;
+      voiceStorageWarning = '';
+      try {
+        localStorage.setItem(voicePreferenceKey, voicePreference.value);
+      } catch (error) {
+        console.error('Unable to save voice preference:', error);
+        voiceStorageWarning = ' Voice preference could not be saved on this device.';
+      }
+      speak('How do you feel?');
+    });
+    previewVoice.addEventListener('click', () => {
+      voiceLocked = false;
+      speak('How do you feel?');
+    });
+    if (speechSupported) window.speechSynthesis.addEventListener('voiceschanged', refreshVoiceStatus);
+    refreshVoiceStatus();
 
     function speak(text) {
       if (!speechSupported) return;
       window.speechSynthesis.cancel();
+      if (!voiceLocked) {
+        const result = chooseDeviceVoice();
+        activeVoice = result.voice;
+        activeVoiceMatched = result.matched;
+        voiceLocked = true;
+        refreshVoiceStatus();
+      }
       const utterance = new SpeechSynthesisUtterance(text);
-      const voices = window.speechSynthesis.getVoices();
-      const englishVoices = voices.filter(voice => /^en([-_]|$)/i.test(voice.lang));
-      const gentleVoices = englishVoices.filter(voice => /samantha|karen|moira|tessa|victoria|fiona|susan|zira|hazel|aria|jenny|female|google us english/i.test(voice.name));
-      utterance.voice = gentleVoices.find(voice => /enhanced|premium|neural|natural/i.test(voice.name)) || gentleVoices[0] || englishVoices[0] || null;
+      utterance.voice = activeVoice;
       utterance.lang = utterance.voice ? utterance.voice.lang : 'en-US';
       utterance.rate = 0.92;
       utterance.pitch = 1.05;
@@ -519,14 +728,8 @@
     let downloadedCheckInKeys = [];
     const downloadChoiceDialog = document.getElementById('download-choice-dialog');
     const downloadChoiceStatus = document.getElementById('download-choice-status');
-    async function showDownloadChoice(keys, status) {
+    function showDownloadChoice(keys) {
       downloadedCheckInKeys = keys;
-      try {
-        await clearDownloadCache(keys);
-      } catch (error) {
-        console.error('Unable to clear the download queue:', error);
-        status.textContent = 'The download started, but its queue could not be cleared. The saved data is still available.';
-      }
       downloadChoiceStatus.textContent = '';
       downloadChoiceDialog.showModal();
     }
@@ -613,7 +816,8 @@
         [
           'Local date', 'Local time', 'Mood', 'Color',
           ...(summaryOnly ? [] : ['Device / browser', 'Latitude', 'Longitude', 'Accuracy meters', 'UTC timestamp', 'UTC minus local offset minutes']),
-          'Notes'
+          'Notes',
+          ...(summaryOnly ? ['Approximate location (Google Maps link)', 'Local date and time', 'Device / browser', 'Latitude', 'Longitude', 'Accuracy meters', 'UTC timestamp', 'UTC minus local offset minutes'] : ['Local date and time'])
         ],
         ...checkIns.map(entry => {
           const timestamp = Date.parse(entry.timestamp);
@@ -625,7 +829,15 @@
             entry.localTime || legacyDate.slice(11, 19),
             entry.feeling, entry.color,
             ...(summaryOnly ? [] : [entry.device || 'Not recorded', entry.latitude, entry.longitude, entry.accuracyMeters, entry.timestamp ?? '', entry.timeZoneOffsetMinutes ?? '']),
-            entry.notes ?? ''
+            entry.notes ?? '',
+            ...(summaryOnly ? [
+              Number.isFinite(entry.latitude) && Number.isFinite(entry.longitude)
+                ? `https://www.google.com/maps/search/?api=1&query=${entry.latitude}%2C${entry.longitude}`
+                : '',
+              entry.localDateTime ?? '', entry.device || 'Not recorded',
+              Number.isFinite(entry.latitude) ? entry.latitude : '', Number.isFinite(entry.longitude) ? entry.longitude : '',
+              Number.isFinite(entry.accuracyMeters) ? entry.accuracyMeters : '', entry.timestamp ?? '', entry.timeZoneOffsetMinutes ?? ''
+            ] : [entry.localDateTime ?? ''])
           ];
         })
       ];
@@ -680,7 +892,7 @@
           historyStatus.textContent = 'Download started. Find checkins.csv in your browser’s downloads and move it to a checkins folder if you wish.';
         }
         historyStatus.textContent += ' Choose whether to clear or keep these downloaded records.';
-        await showDownloadChoice(downloadedKeys, historyStatus);
+        showDownloadChoice(downloadedKeys);
       } catch (error) {
         if (error.name === 'AbortError') {
           historyStatus.textContent = 'Export cancelled.';
@@ -690,8 +902,20 @@
         historyStatus.textContent = 'Could not export check-ins. Check folder permissions and browser storage settings, then try again.';
       }
     });
-    document.getElementById('clear-downloaded-data').addEventListener('click', async () => {
+    const clearDownloadedButton = document.getElementById('clear-downloaded-data');
+    const saveDownloadedButton = document.getElementById('save-downloaded-data');
+    const keepPendingButton = document.getElementById('keep-pending-data');
+    function setDownloadChoiceBusy(busy) {
+      clearDownloadedButton.disabled = busy;
+      saveDownloadedButton.disabled = busy;
+      keepPendingButton.disabled = busy;
+    }
+    downloadChoiceDialog.addEventListener('cancel', event => {
+      if (clearDownloadedButton.disabled) event.preventDefault();
+    });
+    clearDownloadedButton.addEventListener('click', async () => {
       const status = downloadChoiceStatus;
+      setDownloadChoiceBusy(true);
       try {
         if (downloadedCheckInKeys.length) {
           await useCheckInDatabase('readwrite', store => {
@@ -712,22 +936,26 @@
       } catch (error) {
         console.error('Unable to clear downloaded check-ins:', error);
         status.textContent = 'Could not clear the downloaded data. It is still saved on this device.';
+      } finally {
+        setDownloadChoiceBusy(false);
       }
     });
-    document.getElementById('save-downloaded-data').addEventListener('click', () => {
-      downloadChoiceDialog.close();
-      historyStatus.textContent = 'Downloaded check-ins remain saved on this device for later.';
-    });
-    document.getElementById('clear-history').addEventListener('click', async () => {
-      if (!window.confirm('Delete all saved check-ins from this browser?')) return;
+    saveDownloadedButton.addEventListener('click', async () => {
+      setDownloadChoiceBusy(true);
       try {
-        await useCheckInDatabase('readwrite', store => store.clear());
-        historyList.replaceChildren();
-        historyStatus.textContent = 'Saved check-ins deleted.';
+        await clearDownloadCache(downloadedCheckInKeys);
+        downloadChoiceDialog.close();
+        historyStatus.textContent = 'Downloaded check-ins remain saved on this device for later.';
       } catch (error) {
-        console.error('Unable to delete check-ins:', error);
-        historyStatus.textContent = 'Could not delete saved check-ins. Check your browser storage settings.';
+        console.error('Unable to update the download queue:', error);
+        downloadChoiceStatus.textContent = 'Could not update the download queue. Your check-ins are still saved on this device.';
+      } finally {
+        setDownloadChoiceBusy(false);
       }
+    });
+    keepPendingButton.addEventListener('click', () => {
+      downloadChoiceDialog.close();
+      historyStatus.textContent = 'Check-ins remain saved on this device.';
     });
     document.getElementById('close-history').addEventListener('click', () => historyDialog.close());
 
@@ -750,15 +978,54 @@
 
     const feelingChoices = shuffleChoices(document.querySelector('.feelings'));
     feelingChoices.forEach(button => button.addEventListener('click', () => {
-      selectedFeeling = button.lastChild.textContent.trim();
-      feelingChoices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
-      showScreen(2);
+      pendingFeeling = button;
+      const name = button.lastChild.textContent.trim();
+      document.getElementById('feeling-confirm-emoji').textContent = button.querySelector('.feeling-emoji').textContent;
+      document.getElementById('feeling-confirm-heading').textContent = name;
+      feelingDialog.showModal();
+      speak(name);
     }));
+    document.getElementById('confirm-feeling').addEventListener('click', () => {
+      if (!pendingFeeling) return;
+      selectedFeeling = pendingFeeling.lastChild.textContent.trim();
+      feelingChoices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === pendingFeeling)));
+      pendingFeeling = null;
+      feelingDialog.close();
+      showScreen(2);
+    });
+    function declineFeeling() {
+      pendingFeeling = null;
+      if (speechSupported) window.speechSynthesis.cancel();
+    }
+    document.getElementById('decline-feeling').addEventListener('click', () => {
+      declineFeeling();
+      feelingDialog.close();
+    });
+    feelingDialog.addEventListener('cancel', declineFeeling);
     const colorChoices = shuffleChoices(document.querySelector('.colors'));
     colorChoices.forEach(button => button.addEventListener('click', () => {
-      selectedColor = button.getAttribute('aria-label');
-      showScreen(3);
+      pendingColor = button.getAttribute('aria-label');
+      document.getElementById('color-confirm-swatch').dataset.color = button.dataset.color;
+      document.getElementById('color-confirm-heading').textContent = pendingColor;
+      colorDialog.showModal();
+      speak(pendingColor);
     }));
+    document.getElementById('confirm-color').addEventListener('click', () => {
+      if (!pendingColor) return;
+      selectedColor = pendingColor;
+      pendingColor = null;
+      colorDialog.close();
+      showScreen(3);
+    });
+    function declineColor() {
+      pendingColor = null;
+      if (speechSupported) window.speechSynthesis.cancel();
+    }
+    document.getElementById('decline-color').addEventListener('click', () => {
+      declineColor();
+      colorDialog.close();
+    });
+    colorDialog.addEventListener('cancel', declineColor);
     document.getElementById('back-to-colors').addEventListener('click', () => showScreen(2));
     function continueToSave(includeNotes) {
       const date = new Date();
@@ -795,7 +1062,7 @@
       try {
         downloadCsv(checkInsCsv([savedCheckIn], true), 'check-in.csv');
         status.textContent = 'Download started.';
-        await showDownloadChoice([savedCheckInKey], status);
+        showDownloadChoice([savedCheckInKey]);
       } catch (error) {
         console.error('Unable to download check-in:', error);
         status.textContent = 'Could not download the check-in. It is still saved on this device.';
@@ -809,7 +1076,7 @@
       document.getElementById('closed').hidden = false;
       document.getElementById('closed-heading').focus();
     });
-    window.addEventListener('load', () => {
+    function startApp() {
       if (isInstalled) {
         try {
           if (!localStorage.getItem('toddle-cation-demo-invited')) {
@@ -837,6 +1104,10 @@
         }
       }
       speak('How do you feel?');
+    }
+    window.addEventListener('load', () => {
+      pageLoaded = true;
+      if (!startupUpdating) startApp();
     });
   </script>
 </body>

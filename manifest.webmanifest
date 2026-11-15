@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Toddle-Cation",
-  "short_name": "Toddle-Cation",
+  "name": "Bearly Chat",
+  "short_name": "Bearly Chat",
   "description": "A simple way for toddlers to share their feelings.",
   "start_url": "./",
   "scope": "./",
