@@ -173,7 +173,7 @@ function createApp(options = {}) {
   const testMath = Object.assign(Object.create(Math), { random: () => 0 });
   vm.runInNewContext(script, { document, window, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, SpeechSynthesisUtterance, Math: testMath, setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout, console: { error() {} } });
   return {
-    elements, feeling, sadFeeling, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
+    elements, feeling, sadFeeling, madFeeling, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
     feelingOrder: feelings.children.map(choice => choice.lastChild.textContent),
     colorOrder: colors.children.map(choice => choice.getAttribute('aria-label')),
     getRequest: () => request
@@ -191,6 +191,7 @@ function select(app) {
 function chooseFeeling(app) {
   app.feeling.click();
   app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-no').click();
 }
 
 function chooseColor(app) {
@@ -312,6 +313,7 @@ test('voice preference uses one device voice throughout and persists the chosen 
   voices.unshift({ name: 'Samantha Enhanced', lang: 'en-US' });
   app.speechEvents.voiceschanged();
   app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-no').click();
   app.color.click();
   assert.ok(app.utterances.every(utterance => utterance.voice === female));
   app.elements.get('decline-color').click();
@@ -413,6 +415,9 @@ test('feeling confirmation shows and speaks the chosen emoji before continuing',
   assert.deepEqual(app.spoken, ['Happy', 'Sad']);
   app.elements.get('confirm-feeling').click();
   assert.equal(app.elements.get('feeling-dialog').open, false);
+  assert.equal(app.elements.get('add-feeling-dialog').open, true);
+  assert.equal(app.elements.get('colors-screen').hidden, true);
+  app.elements.get('add-feeling-no').click();
   assert.equal(app.elements.get('colors-screen').hidden, false);
   assert.equal(app.sadFeeling.getAttribute('aria-pressed'), 'true');
   assert.equal(app.feeling.getAttribute('aria-pressed'), 'false');
@@ -436,7 +441,81 @@ test('dismissing the feeling popup leaves the previous selection unchanged', () 
   assert.equal(app.sadFeeling.getAttribute('aria-pressed'), 'false');
   app.feeling.click();
   app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-no').click();
   assert.equal(app.elements.get('colors-screen').hidden, false);
+});
+
+test('up to three distinct confirmed feelings are saved and exported together', async () => {
+  const app = createApp();
+  app.feeling.click();
+  app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-yes').click();
+  assert.equal(app.feeling.disabled, true);
+  app.sadFeeling.click();
+  app.elements.get('decline-feeling').click();
+  assert.equal(app.feeling.getAttribute('aria-pressed'), 'true');
+  app.sadFeeling.click();
+  app.elements.get('confirm-feeling').click();
+  assert.match(app.elements.get('selected-feelings').textContent, /Happy, Sad/);
+  app.elements.get('add-feeling-yes').click();
+  app.madFeeling.click();
+  app.elements.get('confirm-feeling').click();
+  assert.equal(app.elements.get('add-feeling-dialog').open, false);
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  assert.equal(app.madFeeling.getAttribute('aria-pressed'), 'true');
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  assert.equal(app.records[0].feeling, 'Happy, Sad, Mad');
+  await app.elements.get('download-check-in').click();
+  assert.match(await app.downloads[0].text(), /"Happy, Sad, Mad"/);
+  app.elements.get('open-history').click();
+  await flush();
+  assert.match(app.elements.get('history-list').children[0].textContent, /Happy, Sad, Mad/);
+});
+
+test('choosing no after the second feeling continues and saves both', async () => {
+  const app = createApp();
+  app.feeling.click();
+  app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-yes').click();
+  app.sadFeeling.click();
+  app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-no').click();
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  assert.equal(app.records[0].feeling, 'Happy, Sad');
+});
+
+test('can stop adding feelings and replace selections when returning from colors', async () => {
+  const app = createApp();
+  app.feeling.click();
+  app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-yes').click();
+  app.elements.get('feelings-done').click();
+  app.elements.get('back').click();
+  app.sadFeeling.click();
+  app.elements.get('decline-feeling').click();
+  assert.equal(app.feeling.getAttribute('aria-pressed'), 'true');
+  app.sadFeeling.click();
+  app.elements.get('confirm-feeling').click();
+  assert.equal(app.feeling.getAttribute('aria-pressed'), 'false');
+  let prevented = false;
+  app.elements.get('add-feeling-dialog').events.cancel({ preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+  assert.equal(app.records[0].feeling, 'Sad');
 });
 
 test('color confirmation shows and speaks the color, then saves only the confirmed choice', async () => {

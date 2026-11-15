@@ -32,7 +32,9 @@
       <section id="feelings-screen" aria-labelledby="feelings-heading">
         <div class="heading">
           <h1 id="feelings-heading" tabindex="-1">How do you feel?</h1>
-          <p class="subtitle">Pick the face that feels like you.</p>
+          <p class="subtitle">Pick up to three faces that feel like you.</p>
+          <p class="subtitle" id="selected-feelings" role="status" aria-live="polite"></p>
+          <button class="dialog-secondary" id="feelings-done" type="button" hidden>Continue with these feelings</button>
           <p class="privacy-notice">With location permission, your check-in, notes, location and browser/device information will be saved on this device.</p>
           <button class="sound" type="button" data-speech="How do you feel?" aria-label="Listen to the question: How do you feel?">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/></svg> Hear the question
@@ -112,6 +114,11 @@
     <button class="close-thanks" id="confirm-feeling" type="button">Yes</button>
     <button class="dialog-secondary" id="decline-feeling" type="button" autofocus>No</button>
   </dialog>
+  <dialog class="detail-dialog" id="add-feeling-dialog" aria-labelledby="add-feeling-heading">
+    <h2 id="add-feeling-heading">Would you like to add another feeling?</h2>
+    <button class="close-thanks" id="add-feeling-yes" type="button">Yes</button>
+    <button class="dialog-secondary" id="add-feeling-no" type="button" autofocus>No</button>
+  </dialog>
   <dialog class="detail-dialog" id="color-dialog" aria-labelledby="color-confirm-heading">
     <span class="color-confirm-swatch" id="color-confirm-swatch" aria-hidden="true"></span>
     <h2 id="color-confirm-heading"></h2>
@@ -143,14 +150,14 @@
       <section class="demo-step" id="demo-step-1" aria-labelledby="demo-step-heading-1">
         <h3 id="demo-step-heading-1" tabindex="-1">1. Pick a feeling</h3>
         <div class="demo-example" aria-hidden="true"><span>😊 Happy</span><span>😢 Sad</span><span>😠 Mad</span></div>
-        <p>Ask the child to choose the face that matches how they feel. In the popup, choose <strong>Yes</strong> to continue or <strong>No</strong> to choose another face. The choices appear in a different order each time the app opens.</p>
+        <p>Ask the child to choose a face that matches how they feel. In the popup, choose <strong>Yes</strong> to confirm or <strong>No</strong> to choose another face. After confirming, choose whether to add another feeling, up to three different feelings. Choose <strong>No</strong> to continue to colors. The choices appear in a different order each time the app opens.</p>
         <p>Use <strong>Hear the question</strong> to play the question again when a device voice is available.</p>
       </section>
       <section class="demo-step" id="demo-step-2" aria-labelledby="demo-step-heading-2" hidden>
         <h3 id="demo-step-heading-2" tabindex="-1">2. Pick a color</h3>
         <div class="demo-example demo-colors" aria-hidden="true"><span>Red</span><span>Blue</span><span>Yellow</span></div>
         <p>Choose any color that feels right. In the popup, choose <strong>Yes</strong> to continue or <strong>No</strong> to choose another color. Color choices also appear in a different order each time the app opens.</p>
-        <p>Select <strong>Back to feelings</strong> to change the feeling.</p>
+        <p>Select <strong>Back to feelings</strong> to choose the feelings again.</p>
       </section>
       <section class="demo-step" id="demo-step-3" aria-labelledby="demo-step-heading-3" hidden>
         <h3 id="demo-step-heading-3" tabindex="-1">3. Add notes or skip</h3>
@@ -160,7 +167,7 @@
       <section class="demo-step" id="demo-step-4" aria-labelledby="demo-step-heading-4" hidden>
         <h3 id="demo-step-heading-4" tabindex="-1">4. Allow location to save</h3>
         <p>An adult can choose <strong>Allow location and save</strong> and approve the browser's location request. Location is required; if permission is denied or location is unavailable, the check-in is not saved. Choose <strong>Cancel</strong> to return without saving.</p>
-        <p>The feeling, color, notes, date and time, location, and browser/device information are stored in this browser on this device.</p>
+        <p>The feelings, color, notes, date and time, location, and browser/device information are stored in this browser on this device.</p>
       </section>
       <section class="demo-step" id="demo-step-5" aria-labelledby="demo-step-heading-5" hidden>
         <h3 id="demo-step-heading-5" tabindex="-1">5. Download or review</h3>
@@ -178,7 +185,7 @@
   </dialog>
   <dialog class="detail-dialog" id="location-dialog" aria-labelledby="location-heading" aria-describedby="location-description">
     <h2 id="location-heading">Save this check-in?</h2>
-    <p id="location-description">An adult can allow location to save the feeling, color, notes, local date and time, device location, and browser/device information on this device. Location is required to save.</p>
+    <p id="location-description">An adult can allow location to save the feelings, color, notes, local date and time, device location, and browser/device information on this device. Location is required to save.</p>
     <p class="dialog-status" id="location-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="save-check-in" type="button">Allow location and save</button>
     <button class="dialog-secondary" id="cancel-save" type="button">Cancel</button>
@@ -244,7 +251,8 @@
     const legacyStorageKey = 'toddle-cation-check-ins';
     const voicePreferenceKey = 'toddle-cation-voice-preference';
     let installPrompt = null;
-    let selectedFeeling = '';
+    let selectedFeelings = [];
+    let replaceFeelings = false;
     let pendingFeeling = null;
     let selectedColor = '';
     let pendingColor = null;
@@ -958,6 +966,18 @@
     }
 
     const feelingChoices = shuffleChoices(document.querySelector('.feelings'));
+    const addFeelingDialog = document.getElementById('add-feeling-dialog');
+    function updateFeelingChoices() {
+      feelingChoices.forEach(choice => {
+        const selected = selectedFeelings.includes(choice);
+        choice.setAttribute('aria-pressed', String(selected));
+        choice.disabled = selected && !replaceFeelings;
+      });
+      document.getElementById('selected-feelings').textContent = selectedFeelings.length
+        ? `Chosen: ${selectedFeelings.map(choice => choice.lastChild.textContent.trim()).join(', ')}`
+        : '';
+      document.getElementById('feelings-done').hidden = !selectedFeelings.length;
+    }
     feelingChoices.forEach(button => button.addEventListener('click', () => {
       pendingFeeling = button;
       const name = button.lastChild.textContent.trim();
@@ -968,11 +988,18 @@
     }));
     document.getElementById('confirm-feeling').addEventListener('click', () => {
       if (!pendingFeeling) return;
-      selectedFeeling = pendingFeeling.lastChild.textContent.trim();
-      feelingChoices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === pendingFeeling)));
+      if (replaceFeelings) selectedFeelings = [];
+      replaceFeelings = false;
+      selectedFeelings.push(pendingFeeling);
       pendingFeeling = null;
       feelingDialog.close();
-      showScreen(2);
+      updateFeelingChoices();
+      if (selectedFeelings.length === 3) {
+        showScreen(2);
+      } else {
+        addFeelingDialog.showModal();
+        speak('Would you like to add another feeling?');
+      }
     });
     function declineFeeling() {
       pendingFeeling = null;
@@ -983,6 +1010,20 @@
       feelingDialog.close();
     });
     feelingDialog.addEventListener('cancel', declineFeeling);
+    document.getElementById('add-feeling-yes').addEventListener('click', () => {
+      addFeelingDialog.close();
+      document.getElementById('feelings-heading').focus();
+    });
+    function finishFeelings() {
+      if (addFeelingDialog.open) addFeelingDialog.close();
+      showScreen(2);
+    }
+    document.getElementById('add-feeling-no').addEventListener('click', finishFeelings);
+    document.getElementById('feelings-done').addEventListener('click', finishFeelings);
+    addFeelingDialog.addEventListener('cancel', event => {
+      event.preventDefault();
+      finishFeelings();
+    });
     const colorChoices = shuffleChoices(document.querySelector('.colors'));
     colorChoices.forEach(button => button.addEventListener('click', () => {
       pendingColor = button.getAttribute('aria-label');
@@ -1011,7 +1052,7 @@
     function continueToSave(includeNotes) {
       const date = new Date();
       pendingCheckIn = {
-        feeling: selectedFeeling,
+        feeling: selectedFeelings.map(choice => choice.lastChild.textContent.trim()).join(', '),
         color: selectedColor,
         notes: includeNotes ? document.getElementById('owner-notes').value.trim() : '',
         localDate: date.toLocaleDateString(),
@@ -1032,7 +1073,11 @@
       event.preventDefault();
       document.getElementById('continue-to-save').click();
     });
-    document.getElementById('back').addEventListener('click', () => showScreen(1));
+    document.getElementById('back').addEventListener('click', () => {
+      replaceFeelings = true;
+      updateFeelingChoices();
+      showScreen(1);
+    });
     document.getElementById('thank-message').addEventListener('click', () => speak('Thank you!'));
     document.getElementById('download-check-in').addEventListener('click', async () => {
       const status = document.getElementById('download-check-in-status');
