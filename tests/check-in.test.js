@@ -45,6 +45,15 @@ function createApp(options = {}) {
   madFeeling.querySelector = () => ({ textContent: '😠' });
   const feelings = element();
   const feelingChoices = [feeling, sadFeeling, madFeeling];
+  if (options.allFeelings) {
+    for (const match of html.matchAll(/<button class="feeling-choice"[^>]*><span class="feeling-emoji"[^>]*>([^<]+)<\/span>([^<]+)<\/button>/g)) {
+      if (['Happy', 'Sad', 'Mad'].includes(match[2])) continue;
+      const choice = element();
+      choice.lastChild = { textContent: match[2] };
+      choice.querySelector = () => ({ textContent: match[1] });
+      feelingChoices.push(choice);
+    }
+  }
   feelingChoices.forEach(choice => feelings.appendChild(choice));
   const color = element();
   color.attributes['aria-label'] = 'Blue';
@@ -173,7 +182,7 @@ function createApp(options = {}) {
   const testMath = Object.assign(Object.create(Math), { random: () => 0 });
   vm.runInNewContext(script, { document, window, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, SpeechSynthesisUtterance, Math: testMath, setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout, console: { error() {} } });
   return {
-    elements, feeling, sadFeeling, madFeeling, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
+    elements, feeling, sadFeeling, madFeeling, feelingChoices, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
     feelingOrder: feelings.children.map(choice => choice.lastChild.textContent),
     colorOrder: colors.children.map(choice => choice.getAttribute('aria-label')),
     getRequest: () => request
@@ -302,12 +311,13 @@ test('shuffles the color choices on load while keeping each swatch paired with i
   assert.deepEqual(app.colorOrder, ['Red', 'Yellow', 'Blue']);
 });
 
-test('voice preference uses one device voice throughout and persists the chosen option', async () => {
-  const storageValues = new Map();
+test('uses a female device voice even when a male preference was previously saved', async () => {
+  const storageValues = new Map([['toddle-cation-voice-preference', 'male']]);
   const female = { name: 'Samantha', lang: 'en-US' };
   const male = { name: 'Daniel', lang: 'en-GB' };
   const voices = [female, male];
   const app = createApp({ speech: true, voices, storageValues });
+  assert.equal(app.elements.has('voice-preference'), false);
   app.feeling.click();
   assert.equal(app.utterances.at(-1).voice, female);
   voices.unshift({ name: 'Samantha Enhanced', lang: 'en-US' });
@@ -318,11 +328,6 @@ test('voice preference uses one device voice throughout and persists the chosen 
   assert.ok(app.utterances.every(utterance => utterance.voice === female));
   app.elements.get('decline-color').click();
   app.elements.get('back').click();
-  app.elements.get('voice-preference').value = 'male';
-  app.elements.get('voice-preference').events.change();
-  assert.equal(app.utterances.at(-1).voice, male);
-  assert.equal(storageValues.get('toddle-cation-voice-preference'), 'male');
-  const maleStart = app.utterances.length - 1;
   chooseFeeling(app);
   chooseColor(app);
   app.elements.get('continue-to-save').click();
@@ -330,12 +335,11 @@ test('voice preference uses one device voice throughout and persists the chosen 
   app.getRequest().success(position());
   await flush();
   assert.equal(app.utterances.at(-1).text, 'Thank you!');
-  assert.ok(app.utterances.slice(maleStart).every(utterance => utterance.voice === male));
+  assert.ok(app.utterances.every(utterance => utterance.voice === female));
 
   const reopened = createApp({ speech: true, voices, storageValues });
-  assert.equal(reopened.elements.get('voice-preference').value, 'male');
   reopened.feeling.click();
-  assert.equal(reopened.utterances.at(-1).voice, male);
+  assert.equal(reopened.utterances.at(-1).voice.name, 'Samantha Enhanced');
 });
 
 test('voice selection reports fallbacks and can retry when device voices load', () => {
@@ -347,23 +351,15 @@ test('voice selection reports fallbacks and can retry when device voices load', 
   app.elements.get('decline-feeling').click();
   voices.push({ name: 'Unknown voice', lang: 'en-US' }, { name: 'Daniel', lang: 'en-GB' });
   app.speechEvents.voiceschanged();
-  app.elements.get('voice-preference').value = 'male';
-  app.elements.get('voice-preference').events.change();
-  assert.equal(app.utterances.at(-1).voice.name, 'Daniel');
-  app.elements.get('voice-preference').value = 'female';
-  app.elements.get('voice-preference').events.change();
+  app.elements.get('preview-voice').click();
   assert.match(app.elements.get('voice-status').textContent, /no matching female.*unknown voice/i);
   voices.push({ name: 'Samantha', lang: 'en-US' });
   app.elements.get('preview-voice').click();
   assert.equal(app.utterances.at(-1).voice.name, 'Samantha');
 
   const unsupported = createApp();
-  assert.equal(unsupported.elements.get('voice-preference').disabled, true);
+  assert.equal(unsupported.elements.get('preview-voice').disabled, true);
   assert.match(unsupported.elements.get('voice-status').textContent, /speech is unavailable/i);
-  const noStorage = createApp({ speech: true, storageError: true });
-  noStorage.elements.get('voice-preference').value = 'male';
-  noStorage.elements.get('voice-preference').events.change();
-  assert.match(noStorage.elements.get('voice-status').textContent, /could not be saved/i);
 });
 
 test('Bearly Chat retains the existing installed identity and saved check-ins', async () => {
@@ -474,6 +470,36 @@ test('up to three distinct confirmed feelings are saved and exported together', 
   app.elements.get('open-history').click();
   await flush();
   assert.match(app.elements.get('history-list').children[0].textContent, /Happy, Sad, Mad/);
+});
+
+test('every emoji requires confirmation before asking to add another feeling', () => {
+  const app = createApp({ allFeelings: true });
+  assert.equal(app.feelingChoices.length, 9);
+  for (const choice of app.feelingChoices) {
+    choice.click();
+    assert.equal(app.elements.get('feeling-dialog').open, true);
+    assert.equal(app.elements.get('feeling-confirm-heading').textContent, choice.lastChild.textContent);
+    assert.equal(app.elements.get('feeling-confirm-emoji').textContent, choice.querySelector('.feeling-emoji').textContent);
+    assert.notEqual(app.elements.get('add-feeling-dialog').open, true);
+    app.elements.get('decline-feeling').click();
+    assert.notEqual(app.elements.get('add-feeling-dialog').open, true);
+    assert.equal(choice.getAttribute('aria-pressed'), undefined);
+  }
+  for (const [index, choice] of app.feelingChoices.slice(0, 3).entries()) {
+    choice.click();
+    assert.equal(app.elements.get('feeling-dialog').open, true);
+    assert.notEqual(app.elements.get('add-feeling-dialog').open, true);
+    assert.equal(app.elements.get('feeling-confirm-heading').textContent, choice.lastChild.textContent);
+    app.elements.get('confirm-feeling').click();
+    assert.equal(choice.getAttribute('aria-pressed'), 'true');
+    if (index < 2) {
+      assert.equal(app.elements.get('add-feeling-dialog').open, true);
+      app.elements.get('add-feeling-yes').click();
+    } else {
+      assert.notEqual(app.elements.get('add-feeling-dialog').open, true);
+      assert.equal(app.elements.get('colors-screen').hidden, false);
+    }
+  }
 });
 
 test('choosing no after the second feeling continues and saves both', async () => {

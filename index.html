@@ -40,12 +40,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/></svg> Hear the question
           </button>
           <div class="voice-settings">
-            <label for="voice-preference">Voice preference</label>
-            <select id="voice-preference" aria-describedby="voice-status">
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-            </select>
-            <button class="dialog-secondary" id="preview-voice" type="button">Hear voice</button>
+            <button class="dialog-secondary" id="preview-voice" type="button" aria-describedby="voice-status">Hear voice</button>
             <p id="voice-status" role="status" aria-live="polite"></p>
           </div>
         </div>
@@ -249,7 +244,6 @@
     const historyList = document.getElementById('history-list');
     const cancelSaveButton = document.getElementById('cancel-save');
     const legacyStorageKey = 'toddle-cation-check-ins';
-    const voicePreferenceKey = 'toddle-cation-voice-preference';
     let installPrompt = null;
     let selectedFeelings = [];
     let replaceFeelings = false;
@@ -551,27 +545,15 @@
       });
     }
 
-    const voicePreference = document.getElementById('voice-preference');
     const previewVoice = document.getElementById('preview-voice');
     const voiceStatus = document.getElementById('voice-status');
     let activeVoice = null;
     let voiceLocked = false;
-    let voiceStorageWarning = '';
-    voicePreference.value = 'female';
-    try {
-      const savedPreference = localStorage.getItem(voicePreferenceKey);
-      if (savedPreference === 'male' || savedPreference === 'female') voicePreference.value = savedPreference;
-    } catch (error) {
-      console.error('Unable to load voice preference:', error);
-      voiceStorageWarning = ' Voice preference could not be loaded from this device.';
-    }
-
     function chooseDeviceVoice() {
       const voices = window.speechSynthesis.getVoices();
       const englishVoices = voices.filter(voice => /^en([-_]|$)/i.test(voice.lang));
       const femaleNames = /\b(?:samantha|karen|moira|tessa|victoria|fiona|susan|zira|hazel|aria|jenny|female)\b|google us english/i;
-      const maleNames = /\b(?:daniel|alex|fred|tom|david|mark|guy|james|male)\b/i;
-      const matches = englishVoices.filter(voice => (voicePreference.value === 'male' ? maleNames : femaleNames).test(voice.name));
+      const matches = englishVoices.filter(voice => femaleNames.test(voice.name));
       return {
         voice: matches.find(voice => /enhanced|premium|neural|natural/i.test(voice.name)) || matches[0] || englishVoices[0] || voices[0] || null,
         matched: matches.length > 0
@@ -580,13 +562,13 @@
 
     function describeVoice(result) {
       if (!speechSupported) {
-        voiceStatus.textContent = `Speech is unavailable in this browser.${voiceStorageWarning}`;
+        voiceStatus.textContent = 'Speech is unavailable in this browser.';
       } else if (!result.voice) {
-        voiceStatus.textContent = `No device voices are listed. Speech will use the device's default voice if available. Choose Hear voice to retry when voices load.${voiceStorageWarning}`;
+        voiceStatus.textContent = "No device voices are listed. Speech will use the device's default voice if available. Choose Hear voice to retry when voices load.";
       } else if (!result.matched) {
-        voiceStatus.textContent = `No matching ${voicePreference.value} voice was identified. Using ${result.voice.name} instead.${voiceStorageWarning}`;
+        voiceStatus.textContent = `No matching female voice was identified. Using ${result.voice.name} instead.`;
       } else {
-        voiceStatus.textContent = `Using ${result.voice.name}. Voice labels are based on device names and may not be accurate.${voiceStorageWarning}`;
+        voiceStatus.textContent = `Using ${result.voice.name}. Voice labels are based on device names and may not be accurate.`;
       }
     }
     let activeVoiceMatched = false;
@@ -599,19 +581,7 @@
         describeVoice(chooseDeviceVoice());
       }
     }
-    voicePreference.disabled = !speechSupported;
     previewVoice.disabled = !speechSupported;
-    voicePreference.addEventListener('change', () => {
-      voiceLocked = false;
-      voiceStorageWarning = '';
-      try {
-        localStorage.setItem(voicePreferenceKey, voicePreference.value);
-      } catch (error) {
-        console.error('Unable to save voice preference:', error);
-        voiceStorageWarning = ' Voice preference could not be saved on this device.';
-      }
-      speak('How do you feel?');
-    });
     previewVoice.addEventListener('click', () => {
       voiceLocked = false;
       speak('How do you feel?');
