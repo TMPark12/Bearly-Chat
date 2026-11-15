@@ -6,7 +6,6 @@ const vm = require('node:vm');
 const html = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const locationSetupHtml = fs.readFileSync(require('node:path').join(__dirname, '../location-setup.html'), 'utf8');
-const locationSetupScript = locationSetupHtml.match(/<script>([\s\S]*?)<\/script>/)[1];
 
 function createApp(options = {}) {
   const elements = new Map();
@@ -83,7 +82,6 @@ function createApp(options = {}) {
     location: { reload() { if (options.onReload) options.onReload(); } },
     open(url, target) {
       openedPages.push({ url, target });
-      if (options.onOpenPage) options.onOpenPage(url, target);
       return options.popupBlocked ? null : {};
     },
     scrollTo() {}, close() {}, confirm() { return true; }
@@ -202,19 +200,6 @@ function chooseColor(app) {
 
 function position() {
   return { coords: { latitude: 42.12, longitude: -71.34, accuracy: 10 } };
-}
-
-function createLocationSetup(secure = true) {
-  const elements = new Map(['allow-location', 'location-status'].map(id => [id, {
-    disabled: false, textContent: '', events: {}, addEventListener(name, callback) { this.events[name] = callback; }
-  }]));
-  let request;
-  const navigator = { geolocation: { getCurrentPosition(success, failure) { request = { success, failure }; } } };
-  vm.runInNewContext(locationSetupScript, {
-    document: { getElementById(id) { return elements.get(id); } },
-    navigator, window: { isSecureContext: secure }
-  });
-  return { elements, getRequest: () => request };
 }
 
 test('offers the demo on first installed launch and not on later launches or browser visits', () => {
@@ -827,25 +812,10 @@ test('migrates earlier check-ins and clears them only after export', async () =>
   assert.equal(app.records.length, 0);
 });
 
-test('location setup requires a tap and handles permission outcomes without saving coordinates', () => {
-  for (const outcome of ['success', 'denied', 'unavailable']) {
-    const setup = createLocationSetup(outcome !== 'unavailable');
-    const { elements } = setup;
-    assert.equal(setup.getRequest(), undefined);
-    elements.get('allow-location').events.click();
-    if (outcome === 'unavailable') {
-      assert.equal(setup.getRequest(), undefined);
-      assert.match(elements.get('location-status').textContent, /unavailable.*still install/i);
-    } else {
-      assert.equal(elements.get('allow-location').disabled, true);
-      assert.match(elements.get('location-status').textContent, /return.*install/i);
-      const request = setup.getRequest();
-      if (outcome === 'success') request.success(position());
-      else request.failure({ code: 1 });
-      assert.equal(elements.get('allow-location').disabled, false);
-      assert.match(elements.get('location-status').textContent, outcome === 'success' ? /did not save or upload/i : /denied.*continue installing/i);
-    }
-  }
+test('old location setup page directs users back to install without asking for location', () => {
+  assert.match(locationSetupHtml, /location setup is no longer needed/i);
+  assert.match(locationSetupHtml, /href="\.\/"/);
+  assert.doesNotMatch(locationSetupHtml, /getCurrentPosition|allow-location/);
 });
 
 test('install invitation appears once per session and not in standalone mode', () => {
@@ -874,6 +844,8 @@ test('native install prompt launches immediately without location setup', async 
       prompt() { prompted++; return Promise.resolve({ outcome: 'accepted' }); }
     });
     if (entry === 'invite-install') app.handlers.load();
+    assert.equal(app.elements.has('invite-location'), false);
+    assert.equal(app.elements.has('install-location'), false);
     app.elements.get(entry).click();
     assert.equal(prevented, true);
     assert.equal(prompted, 1);
@@ -889,46 +861,14 @@ test('native install prompt launches immediately without location setup', async 
   }
 });
 
-test('location setup can be pending or blocked without delaying native installation', async () => {
-  for (const popupBlocked of [false, true]) {
-    const setup = createLocationSetup();
-    const app = createApp({
-      popupBlocked,
-      onOpenPage() { if (!popupBlocked) setup.elements.get('allow-location').events.click(); }
-    });
-    let prompted = 0;
-    app.handlers.beforeinstallprompt({
-      preventDefault() {},
-      prompt() { prompted++; return Promise.resolve({ outcome: 'accepted' }); }
-    });
-    app.handlers.load();
-    app.elements.get('invite-location').click();
-    assert.deepEqual(app.openedPages, [{ url: './location-setup.html', target: '_blank' }]);
-    assert.match(app.elements.get('invite-location-status').textContent, popupBlocked ? /could not open.*continue installing/i : /install.*pending/i);
-    assert.equal(app.elements.get('install-invitation').open, true);
-    if (!popupBlocked) {
-      assert.ok(setup.getRequest());
-      assert.equal(setup.elements.get('allow-location').disabled, true);
-    }
-    app.elements.get('invite-install').click();
-    assert.equal(prompted, 1);
-    await flush();
-    assert.match(app.elements.get('install-instructions').textContent, /installation started/i);
-  }
-});
-
 test('install help appears immediately when native prompt is unavailable', () => {
-  const app = createApp({ userAgent: 'iPhone', platform: 'iPhone' });
+  const app = createApp({ userAgent: 'iPhone', platform: 'iPhone', noGeolocation: true });
   app.handlers.load();
   app.elements.get('invite-install').click();
   assert.equal(app.elements.get('install-dialog').open, true);
   assert.match(app.elements.get('install-instructions').textContent, /Share.*Add to Home Screen/);
   assert.equal(app.getRequest(), undefined);
   assert.equal(app.openedPages.length, 0);
-  app.elements.get('install-location').click();
-  assert.equal(app.openedPages.length, 1);
-  assert.equal(app.elements.get('install-dialog').open, true);
-  assert.match(app.elements.get('install-instructions').textContent, /Share.*Add to Home Screen/);
   app.elements.get('install-done').click();
   assert.equal(app.elements.get('install-dialog').open, false);
   assert.equal(app.elements.get('install-invitation').open, false);

@@ -210,18 +210,12 @@
   <dialog class="install-dialog" id="install-invitation" aria-labelledby="install-invitation-heading">
     <h2 id="install-invitation-heading">Install Bearly Chat</h2>
     <p>Add the app to your home screen or app list for easy access, including offline use after opening it online.</p>
-    <p>Optional: allow location in a separate browser page. You can install without waiting; the installed app may ask for location again.</p>
-    <button class="dialog-secondary" id="invite-location" type="button">Open location webpage</button>
-    <p class="dialog-status" id="invite-location-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="invite-install" type="button">Install app</button>
     <button class="dialog-secondary" id="invite-dismiss" type="button">Not now</button>
   </dialog>
   <dialog class="install-dialog" id="install-dialog" aria-labelledby="install-heading">
     <h2 id="install-heading">Install Bearly Chat</h2>
     <p id="install-instructions" role="status"></p>
-    <p>Optional: allow location in a separate browser page. Installation does not wait for location, and the installed app may ask again.</p>
-    <button class="dialog-secondary" id="install-location" type="button">Open location webpage</button>
-    <p class="dialog-status" id="install-location-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="install-done" type="button">Done</button>
   </dialog>
   <main class="closed" id="closed" hidden>
@@ -355,16 +349,7 @@
       speak('How do you feel?');
     });
     installInvitation.addEventListener('cancel', () => speak('How do you feel?'));
-    function openLocationSetup(status) {
-      const page = window.open('./location-setup.html', '_blank');
-      status.textContent = page
-        ? 'Location page opened. Return here to install, even if location is still pending.'
-        : 'Could not open the location page. Allow popups to try again, or continue installing without it.';
-    }
-    document.getElementById('invite-location').addEventListener('click', () => openLocationSetup(document.getElementById('invite-location-status')));
-    document.getElementById('install-location').addEventListener('click', () => openLocationSetup(document.getElementById('install-location-status')));
     function showInstallHelp(instructions) {
-      document.getElementById('install-location-status').textContent = '';
       document.getElementById('install-instructions').textContent = instructions;
       installDialog.showModal();
     }

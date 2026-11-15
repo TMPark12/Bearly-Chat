@@ -4,41 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f6f7f2">
-  <title>Allow location - Bearly Chat</title>
+  <title>Continue to Bearly Chat</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="location-setup">
     <div>
-      <h1>Allow location</h1>
-      <p>Optionally allow location in this browser for future check-ins. The installed app may ask again. Bearly Chat does not save or upload the coordinates retrieved for this check.</p>
-      <button id="allow-location" type="button">Allow location in browser</button>
-      <p class="location-setup-status" id="location-status" role="status" aria-live="polite"></p>
-      <p>You can return to the original Bearly Chat tab and install at any time, even while location is pending. If that tab is unavailable, <a href="./">open Bearly Chat</a>.</p>
+      <h1>Continue to Bearly Chat</h1>
+      <p>Location setup is no longer needed to install Bearly Chat. Return to the original Bearly Chat tab, select Done if it is shown, then select Install app to continue.</p>
+      <p>If the original tab is not available, <a href="./">open Bearly Chat</a>.</p>
     </div>
   </main>
-  <script>
-    const allowButton = document.getElementById('allow-location');
-    const status = document.getElementById('location-status');
-
-    allowButton.addEventListener('click', () => {
-      if (!window.isSecureContext || !navigator.geolocation) {
-        status.textContent = 'Location is unavailable. Open Bearly Chat on HTTPS or localhost and enable location on your device. You can still install.';
-        return;
-      }
-
-      allowButton.disabled = true;
-      status.textContent = 'Waiting for browser permission and device location. You can return to Bearly Chat to install.';
-      navigator.geolocation.getCurrentPosition(() => {
-        status.textContent = 'Location permission is available in this browser. Bearly Chat did not save or upload the coordinates.';
-        allowButton.disabled = false;
-      }, error => {
-        status.textContent = error.code === 1
-          ? 'Location permission was denied. Check your browser or device settings, or continue installing without it.'
-          : 'Could not get your location. Check your browser or device settings, or continue installing without it.';
-        allowButton.disabled = false;
-      }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-    });
-  </script>
 </body>
 </html>
