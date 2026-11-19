@@ -9,7 +9,8 @@ test('caches the app and serves its pages and styles when offline', async () => 
   const files = new Map([
     ['./index.html', 'cached page'],
     ['./location-setup.html', 'cached location page'],
-    ['./style.css', 'cached styles']
+    ['./style.css', 'cached styles'],
+    ['./translations.js', 'cached translations']
   ]);
   let precached;
   const cache = {
@@ -29,6 +30,7 @@ test('caches the app and serves its pages and styles when offline', async () => 
   assert.ok(precached.includes('./index.html'));
   assert.ok(precached.includes('./location-setup.html'));
   assert.ok(precached.includes('./style.css'));
+  assert.ok(precached.includes('./translations.js'));
   assert.ok(precached.includes('./manifest.webmanifest'));
   assert.ok(precached.includes('./icons/icon-180.png'));
   assert.ok(precached.includes('./icons/icon-192.png'));
@@ -75,7 +77,7 @@ test('removes old app caches without touching unrelated caches', async () => {
   const context = {
     self: { addEventListener(name, callback) { handlers[name] = callback; } },
     caches: {
-      keys() { return Promise.resolve(['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'another-app']); },
+      keys() { return Promise.resolve(['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'another-app']); },
       delete(key) { deleted.push(key); return Promise.resolve(true); }
     }
   };
@@ -83,5 +85,5 @@ test('removes old app caches without touching unrelated caches', async () => {
   let pending;
   handlers.activate({ waitUntil(promise) { pending = promise; } });
   await pending;
-  assert.deepEqual(deleted, ['toddle-cation-v29', 'bearly-chat-v29']);
+  assert.deepEqual(deleted, ['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32']);
 });

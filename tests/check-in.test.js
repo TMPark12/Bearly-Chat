@@ -12,7 +12,7 @@ function createApp(options = {}) {
   function element(id = '') {
     const node = {
       id, hidden: false, disabled: false, textContent: '', value: '', dataset: {}, attributes: {}, children: [], events: {},
-      classList: { toggle() {} },
+      classList: { toggle() {}, add() {}, remove() {} },
       addEventListener(name, callback) { this.events[name] = callback; },
       setAttribute(name, value) { this.attributes[name] = value; },
       getAttribute(name) { return this.attributes[name]; },
@@ -195,9 +195,10 @@ function createApp(options = {}) {
     }
   };
   const testMath = Object.assign(Object.create(Math), { random: () => 0 });
+  vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../translations.js'), 'utf8'), { window });
   vm.runInNewContext(script, { document, window, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, SpeechSynthesisUtterance, Math: testMath, setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout, console: { error() {} } });
   return {
-    elements, feeling, sadFeeling, madFeeling, feelingChoices, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
+    elements, feeling, sadFeeling, madFeeling, feelingChoices, feelingContainer: feelings, colorChoices, colorContainer: colors, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
     feelingOrder: feelings.children.map(choice => choice.lastChild.textContent),
     colorOrder: colors.children.map(choice => choice.getAttribute('aria-label')),
     getRequest: () => request
@@ -731,6 +732,30 @@ test('single check-in download contains all saved data and keeps it until explic
   assert.equal(app.elements.get('closed').hidden, false);
 });
 
+test('another check-in resets the form without removing the saved check-in', async () => {
+  const app = createApp();
+  chooseFeeling(app);
+  chooseColor(app);
+  app.elements.get('owner-notes').value = 'First check-in note';
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  app.getRequest().success(position());
+  await flush();
+
+  app.elements.get('another-check-in').click();
+
+  assert.equal(app.elements.get('thanks').open, false);
+  assert.equal(app.elements.get('feelings-screen').hidden, false);
+  assert.equal(app.elements.get('colors-screen').hidden, true);
+  assert.equal(app.elements.get('notes-screen').hidden, true);
+  assert.equal(app.elements.get('owner-notes').value, '');
+  assert.equal(app.elements.get('selected-feelings').textContent, '');
+  assert.equal(app.elements.get('feelings-done').hidden, true);
+  assert.equal(app.feeling.attributes['aria-pressed'], 'false');
+  assert.equal(app.records.length, 1);
+  assert.equal(app.records[0].notes, 'First check-in note');
+});
+
 test('check-in download leaves the location link blank when coordinates are unavailable', async () => {
   const app = createApp();
   select(app);
@@ -986,6 +1011,7 @@ test('old location setup page directs users back to install without asking for l
 });
 
 test('install invitation appears once per session and not in standalone mode', () => {
+  assert.match(html, /Would you like to add Bearly Chat to your home screen\?/);
   const sessionValues = new Map();
   const app = createApp({ sessionValues });
   app.handlers.load();
@@ -999,6 +1025,11 @@ test('install invitation appears once per session and not in standalone mode', (
   installed.handlers.load();
   assert.equal(installed.elements.get('install-invitation').open, undefined);
   assert.equal(installed.elements.get('install-button').hidden, true);
+});
+
+test('feeling choices appear above the feelings heading', () => {
+  const feelingsScreen = html.match(/<section id="feelings-screen"[\s\S]*?<\/section>/)[0];
+  assert.ok(feelingsScreen.indexOf('class="feelings"') < feelingsScreen.indexOf('class="heading"'));
 });
 
 test('native install prompt launches immediately without location setup', async () => {
@@ -1340,4 +1371,59 @@ test('settings screen saves preferences, mutes speech and returns to the check-i
   elements.get('close-settings').click();
   assert.equal(elements.get('settings-screen').hidden, true);
   assert.equal(elements.get('feelings-screen').hidden, false);
+});
+
+test('settings select voice and language, adjust volume, and shuffle choices', () => {
+  const voices = [
+    { name: 'Samantha', lang: 'en-US' },
+    { name: 'David', lang: 'en-US' },
+    { name: 'Spanish Male', lang: 'es-ES' }
+  ];
+  const app = createApp({ speech: true, voices });
+  const originalFeelings = app.feelingOrder.slice();
+  const originalColors = app.colorOrder.slice();
+  const { elements } = app;
+
+  elements.get('setting-voice-gender').events.change({ target: { value: 'male' } });
+  elements.get('setting-language').events.change({ target: { value: 'es' } });
+  elements.get('setting-volume').events.input({ target: { value: '0.4' } });
+  elements.get('settings-preview-voice').click();
+
+  const utterance = app.utterances.at(-1);
+  assert.equal(utterance.voice.name, 'Spanish Male');
+  assert.equal(utterance.lang, 'es-ES');
+  assert.equal(utterance.volume, 0.4);
+  assert.deepEqual(JSON.parse(app.storage.get('bearly-chat-settings')), {
+    voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false,
+    voiceGender: 'male', language: 'es', volume: 0.4, muted: false, randomize: false, doNotSave: false
+  });
+
+  elements.get('setting-randomize').events.change({ target: { checked: true } });
+  assert.notDeepEqual(app.feelingContainer.children.map(choice => choice.lastChild.textContent), originalFeelings);
+  assert.notDeepEqual(app.colorContainer.children.map(choice => choice.getAttribute('aria-label')), originalColors);
+  elements.get('setting-randomize').events.change({ target: { checked: false } });
+  assert.deepEqual(app.feelingContainer.children.map(choice => choice.lastChild.textContent), originalFeelings);
+  assert.deepEqual(app.colorContainer.children.map(choice => choice.getAttribute('aria-label')), originalColors);
+});
+
+test('Do Not Save skips location and storage, and disables download', async () => {
+  const app = createApp();
+  app.elements.get('setting-do-not-save').events.change({ target: { checked: true } });
+  chooseFeeling(app);
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+
+  assert.equal(app.elements.get('location-dialog').open, true);
+  assert.equal(app.elements.get('save-check-in').disabled, true);
+  assert.match(app.elements.get('location-description').textContent, /location was not requested/i);
+  assert.equal(app.getRequest(), undefined);
+  app.elements.get('save-check-in').click();
+  assert.equal(app.records.length, 0);
+
+  app.elements.get('done-without-saving').click();
+  assert.equal(app.elements.get('location-dialog').open, false);
+  assert.equal(app.elements.get('thanks').open, true);
+  assert.equal(app.elements.get('download-check-in').disabled, true);
+  assert.match(app.elements.get('thank-saved-status').textContent, /not saved/i);
+  assert.equal(app.records.length, 0);
 });

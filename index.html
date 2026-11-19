@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <script src="translations.js"></script>
 </head>
 <body>
   <div class="app" id="app">
@@ -31,20 +32,6 @@
     </aside>
     <main>
       <section id="feelings-screen" aria-labelledby="feelings-heading">
-        <div class="heading">
-          <h1 id="feelings-heading" tabindex="-1">How do you feel?</h1>
-          <p class="subtitle">Pick up to three faces that feel like you.</p>
-          <p class="subtitle" id="selected-feelings" role="status" aria-live="polite"></p>
-          <button class="dialog-secondary" id="feelings-done" type="button" hidden>Continue with these feelings</button>
-          <p class="privacy-notice">With location permission, your check-in, notes, location and browser/device information will be saved on this device.</p>
-          <button class="sound" type="button" data-speech="How do you feel?" aria-label="Listen to the question: How do you feel?">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/></svg> Hear the question
-          </button>
-          <div class="voice-settings">
-            <button class="dialog-secondary" id="preview-voice" type="button" aria-describedby="voice-status">Hear voice</button>
-            <p id="voice-status" role="status" aria-live="polite"></p>
-          </div>
-        </div>
         <div class="feelings">
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😊</span>Happy</button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😢</span>Sad</button>
@@ -58,6 +45,20 @@
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😤</span>Frustrated</button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😵‍💫</span>Overwhelmed</button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">🙈</span>Shy</button>
+        </div>
+        <div class="heading">
+          <h1 id="feelings-heading" tabindex="-1">How do you feel?</h1>
+          <p class="subtitle">Pick up to three faces that feel like you.</p>
+          <p class="subtitle" id="selected-feelings" role="status" aria-live="polite"></p>
+          <button class="dialog-secondary" id="feelings-done" type="button" hidden>Continue with these feelings</button>
+          <p class="privacy-notice" id="privacy-notice">With location permission, your check-in, notes, location and browser/device information will be saved on this device.</p>
+          <button class="sound" type="button" data-speech="How do you feel?" aria-label="Listen to the question: How do you feel?">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/></svg> Hear the question
+          </button>
+          <div class="voice-settings">
+            <button class="dialog-secondary" id="preview-voice" type="button" aria-describedby="voice-status">Hear voice</button>
+            <p id="voice-status" role="status" aria-live="polite"></p>
+          </div>
         </div>
       </section>
       <section id="colors-screen" aria-labelledby="colors-heading" hidden>
@@ -85,7 +86,7 @@
       <section id="notes-screen" aria-labelledby="notes-heading" hidden>
         <div class="notes-panel">
           <h1 id="notes-heading" tabindex="-1">Anything else to note?</h1>
-          <p class="subtitle">Device owner notes are saved with this check-in and included in the CSV export.</p>
+          <p class="subtitle" id="notes-description">Device owner notes are saved with this check-in and included in the CSV export.</p>
           <label for="owner-notes">Device owner notes (optional)</label>
           <textarea id="owner-notes" maxlength="1000" rows="6" aria-describedby="notes-keyboard-hint"></textarea>
           <p class="notes-keyboard-hint" id="notes-keyboard-hint">Press Enter to continue to save, or Shift+Enter for a new line.</p>
@@ -107,7 +108,33 @@
             <label class="setting-row"><input type="checkbox" id="setting-voice"> Read questions aloud</label>
             <label class="setting-row" for="setting-rate">Speech rate: <output id="setting-rate-value" for="setting-rate"></output></label>
             <input type="range" id="setting-rate" min="0.5" max="1.5" step="0.1">
+            <label class="setting-row" for="setting-voice-gender">Voice</label>
+            <select id="setting-voice-gender">
+              <option value="female">Female (default)</option>
+              <option value="male">Male</option>
+            </select>
+            <label class="setting-row" for="setting-language">Language</label>
+            <select id="setting-language">
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="pt">Português</option>
+              <option value="ru">Русский</option>
+              <option value="zh">中文 (简体)</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+            </select>
+            <label class="setting-row" for="setting-volume">Volume: <output id="setting-volume-value" for="setting-volume"></output></label>
+            <input type="range" id="setting-volume" min="0" max="1" step="0.1">
+            <label class="setting-row"><input type="checkbox" id="setting-mute"> Mute speech</label>
             <button class="dialog-secondary" id="settings-preview-voice" type="button">Hear voice</button>
+          </fieldset>
+          <fieldset>
+            <legend>Check-in</legend>
+            <label class="setting-row"><input type="checkbox" id="setting-randomize"> Randomize feeling and color choices</label>
+            <label class="setting-row"><input type="checkbox" id="setting-do-not-save"> Do Not Save</label>
+            <p>When enabled, saving and location are turned off. You can finish without saving.</p>
           </fieldset>
           <fieldset>
             <legend>Display</legend>
@@ -120,6 +147,7 @@
             <button class="dialog-secondary" id="settings-export" type="button">Export check-ins (CSV)</button>
             <button class="dialog-secondary" id="settings-clear" type="button">Clear saved check-ins</button>
             <button class="dialog-secondary" id="settings-demo" type="button">Show demo invitation again</button>
+            <button class="dialog-secondary" id="settings-help" type="button">Help and demo</button>
             <p>A backup from an earlier version may remain in browser storage after clearing check-ins. Clear this site's browser data to remove it.</p>
             <p class="dialog-status" id="settings-status" role="status" aria-live="polite"></p>
           </fieldset>
@@ -215,6 +243,7 @@
     <p id="location-description">An adult can allow location to save the feelings, color, notes, local date and time, device location, and browser/device information on this device. Location is required to save.</p>
     <p class="dialog-status" id="location-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="save-check-in" type="button">Allow location and save</button>
+    <button class="close-thanks" id="done-without-saving" type="button" hidden>Done without saving</button>
     <button class="dialog-secondary" id="cancel-save" type="button">Cancel</button>
   </dialog>
   <dialog class="detail-dialog" id="history-dialog" aria-labelledby="history-heading">
@@ -230,10 +259,12 @@
   <dialog id="thanks" aria-labelledby="thanks-heading">
     <span class="thank-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></span>
     <h2 id="thanks-heading"><button class="thank-message" id="thank-message" type="button" aria-label="Thank You, hear again">Thank You</button></h2>
-    <p>Your check-in has been saved on this device.</p>
+    <p id="thank-saved-status">Your check-in has been saved on this device.</p>
+    <p>Would you like to do another check-in?</p>
     <p>The check-in download includes location and device information and an approximate Google Maps link containing your recorded coordinates. Opening it shares those coordinates with Google.</p>
     <p class="dialog-status" id="download-check-in-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="download-check-in" type="button">Save and Download Check-In</button>
+    <button class="dialog-secondary" id="another-check-in" type="button">Do another check-in</button>
     <button class="dialog-secondary" id="close-thanks" type="button">Close</button>
   </dialog>
   <dialog class="detail-dialog" id="download-choice-dialog" aria-labelledby="download-choice-heading">
@@ -246,7 +277,7 @@
     <button class="dialog-secondary" id="keep-pending-data" type="button" autofocus>Not sure - keep data</button>
   </dialog>
   <dialog class="install-dialog" id="install-invitation" aria-labelledby="install-invitation-heading">
-    <h2 id="install-invitation-heading">Install Bearly Chat</h2>
+    <h2 id="install-invitation-heading">Would you like to add Bearly Chat to your home screen?</h2>
     <p>Add the app to your home screen or app list for easy access, including offline use after opening it online.</p>
     <button class="close-thanks" id="invite-install" type="button">Install app</button>
     <button class="dialog-secondary" id="invite-dismiss" type="button">Not now</button>
@@ -260,6 +291,36 @@
     <h1 id="closed-heading" tabindex="-1">You can close this tab.</h1>
   </main>
   <script>
+    const translations = window.BearlyChatTranslations || {};
+    let settings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: false };
+    function translate(message) {
+      const localized = translations[message];
+      return localized && localized[settings.language] || message;
+    }
+    let localizedTextNodes;
+    let localizedAriaLabels;
+    function applyLanguage() {
+      document.documentElement.lang = settings.language;
+      if (typeof NodeFilter !== 'undefined' && document.createTreeWalker) {
+        if (!localizedTextNodes) {
+          localizedTextNodes = [];
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          while (walker.nextNode()) {
+            const node = walker.currentNode;
+            if (node.parentElement && ['SCRIPT', 'STYLE'].includes(node.parentElement.tagName)) continue;
+            const match = node.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/);
+            if (match && match[2]) localizedTextNodes.push({ node, leading: match[1], source: match[2], trailing: match[3] });
+          }
+          localizedAriaLabels = Array.from(document.querySelectorAll('[aria-label]'))
+            .map(element => ({ element, source: element.getAttribute('aria-label') }));
+        }
+        localizedTextNodes.forEach(({ node, leading, source, trailing }) => {
+          node.nodeValue = `${leading}${translate(source)}${trailing}`;
+        });
+        localizedAriaLabels.forEach(({ element, source }) => element.setAttribute('aria-label', translate(source)));
+      }
+      document.title = translate('Bearly Chat - How do you feel today?');
+    }
     const feelingsScreen = document.getElementById('feelings-screen');
     const colorsScreen = document.getElementById('colors-screen');
     const notesScreen = document.getElementById('notes-screen');
@@ -305,7 +366,7 @@
       const status = document.getElementById('connection-status');
       const connection = navigator.onLine === true ? 'online' : navigator.onLine === false ? 'offline' : 'unknown';
       status.dataset.connection = connection;
-      status.textContent = connection === 'online' ? 'Online' : connection === 'offline' ? 'Offline' : 'Connection unknown';
+      status.textContent = translate(connection === 'online' ? 'Online' : connection === 'offline' ? 'Offline' : 'Connection unknown');
     }
     window.addEventListener('online', updateConnectionStatus);
     window.addEventListener('offline', updateConnectionStatus);
@@ -323,7 +384,8 @@
     function showDemoStep(step) {
       demoStep = step;
       demoSteps.forEach((section, index) => { section.hidden = index !== step; });
-      document.getElementById('demo-progress').textContent = `Step ${step + 1} of ${demoSteps.length}`;
+      document.getElementById('demo-progress').textContent = translate('Step {step} of {total}')
+        .replace('{step}', step + 1).replace('{total}', demoSteps.length);
       demoBack.disabled = step === 0;
       demoNext.hidden = step === demoSteps.length - 1;
       if (demoDialog.open) document.getElementById(`demo-step-heading-${step + 1}`).focus();
@@ -340,7 +402,7 @@
     }
     function printDemo() {
       if (typeof window.print !== 'function') {
-        document.getElementById('demo-print-status').textContent = 'Printing is unavailable in this browser.';
+        document.getElementById('demo-print-status').textContent = translate('Printing is unavailable in this browser.');
         return;
       }
       window.print();
@@ -353,9 +415,9 @@
     });
     document.getElementById('dismiss-demo').addEventListener('click', () => {
       demoInvitation.close();
-      speak('How do you feel?');
+      speak(translate('How do you feel?'));
     });
-    demoInvitation.addEventListener('cancel', () => speak('How do you feel?'));
+    demoInvitation.addEventListener('cancel', () => speak(translate('How do you feel?')));
     document.getElementById('help-print').addEventListener('click', () => {
       openDemo();
       printDemo();
@@ -368,7 +430,7 @@
       document.body.classList.toggle('demo-open', false);
       if (demoFromInvitation) {
         demoFromInvitation = false;
-        speak('How do you feel?');
+        speak(translate('How do you feel?'));
       } else {
         helpDialog.showModal();
       }
@@ -393,11 +455,11 @@
     });
     document.getElementById('invite-dismiss').addEventListener('click', () => {
       installInvitation.close();
-      speak('How do you feel?');
+      speak(translate('How do you feel?'));
     });
-    installInvitation.addEventListener('cancel', () => speak('How do you feel?'));
+    installInvitation.addEventListener('cancel', () => speak(translate('How do you feel?')));
     function showInstallHelp(instructions) {
-      document.getElementById('install-instructions').textContent = instructions;
+      document.getElementById('install-instructions').textContent = translate(instructions);
       installDialog.showModal();
     }
 
@@ -465,7 +527,7 @@
       }
       function startupFailure(message) {
         if (!startupUpdating) return;
-        startupStatus.textContent = message;
+        startupStatus.textContent = translate(message);
         startupContinue.hidden = false;
       }
       if (isInstalled && navigator.onLine !== false) {
@@ -493,7 +555,7 @@
         } else {
           reloadRequired = true;
           updateNotice.hidden = false;
-          updateStatus.textContent = 'An update was installed. Reload to use it after finishing your check-in.';
+          updateStatus.textContent = translate('An update was installed. Reload to use it after finishing your check-in.');
         }
       });
       function applyUpdate() {
@@ -503,13 +565,13 @@
           return;
         }
         if (!registration || !registration.waiting) {
-          updateStatus.textContent = 'The update is no longer available. Reload the app to check again.';
+          updateStatus.textContent = translate('The update is no longer available. Reload the app to check again.');
           return;
         }
         updating = true;
         updateButton.disabled = true;
-        updateStatus.textContent = 'Updating...';
-        if (startupUpdating) startupStatus.textContent = 'Updating the app. This should only take a few moments.';
+        updateStatus.textContent = translate('Updating...');
+        if (startupUpdating) startupStatus.textContent = translate('Updating the app. This should only take a few moments.');
         const worker = registration.waiting;
         if (startupUpdating && !navigator.serviceWorker.controller) {
           worker.addEventListener('statechange', () => {
@@ -519,7 +581,7 @@
         updateTimer = setTimeout(() => {
           updating = false;
           updateButton.disabled = false;
-          updateStatus.textContent = 'The update did not finish. Please try again.';
+          updateStatus.textContent = translate('The update did not finish. Please try again.');
           startupFailure('The update is taking longer than expected. You can continue without updating, or keep waiting.');
         }, 15000);
         try {
@@ -528,7 +590,7 @@
           clearTimeout(updateTimer);
           updating = false;
           updateButton.disabled = false;
-          updateStatus.textContent = 'Could not start the update. Please try again.';
+          updateStatus.textContent = translate('Could not start the update. Please try again.');
           console.error('Unable to start the app update:', error);
           startupFailure('Could not start the update. You can continue without updating.');
         }
@@ -592,26 +654,38 @@
     const voiceStatus = document.getElementById('voice-status');
     let activeVoice = null;
     let voiceLocked = false;
+    let activeVoiceLanguageMatched = false;
+    const speechLocales = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', pt: 'pt-BR', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR' };
     function chooseDeviceVoice() {
       const voices = window.speechSynthesis.getVoices();
-      const englishVoices = voices.filter(voice => /^en([-_]|$)/i.test(voice.lang));
-      const femaleNames = /\b(?:samantha|karen|moira|tessa|victoria|fiona|susan|zira|hazel|aria|jenny|female)\b|google us english/i;
-      const matches = englishVoices.filter(voice => femaleNames.test(voice.name));
+      const locale = speechLocales[settings.language] || speechLocales.en;
+      const languageVoices = voices.filter(voice => new RegExp(`^${settings.language}([-_]|$)`, 'i').test(voice.lang));
+      const namePatterns = {
+        female: /\b(?:samantha|karen|moira|tessa|victoria|fiona|susan|zira|hazel|aria|jenny|female)\b|google us english/i,
+        male: /\b(?:daniel|david|alex|tom|fred|george|guy|james|male)\b/i
+      };
+      const matches = languageVoices.filter(voice => namePatterns[settings.voiceGender].test(voice.name));
       return {
-        voice: matches.find(voice => /enhanced|premium|neural|natural/i.test(voice.name)) || matches[0] || englishVoices[0] || voices[0] || null,
-        matched: matches.length > 0
+        voice: matches.find(voice => /enhanced|premium|neural|natural/i.test(voice.name)) || matches[0] || languageVoices[0] || voices.find(voice => new RegExp(`^${locale.slice(0, 2)}([-_]|$)`, 'i').test(voice.lang)) || voices[0] || null,
+        matched: matches.length > 0,
+        languageMatched: languageVoices.length > 0
       };
     }
 
     function describeVoice(result) {
       if (!speechSupported) {
-        voiceStatus.textContent = 'Speech is unavailable in this browser.';
+        voiceStatus.textContent = translate('Speech is unavailable in this browser.');
       } else if (!result.voice) {
-        voiceStatus.textContent = "No device voices are listed. Speech will use the device's default voice if available. Choose Hear voice to retry when voices load.";
+        voiceStatus.textContent = translate("No device voices are listed. Speech will use the device's default voice if available. Choose Hear voice to retry when voices load.");
+      } else if (!result.languageMatched) {
+        voiceStatus.textContent = translate('No voice is available for this language. The device default voice will be used.');
       } else if (!result.matched) {
-        voiceStatus.textContent = `No matching female voice was identified. Using ${result.voice.name} instead.`;
+        const gender = settings.voiceGender === 'female' ? translate('Female') : translate('Male');
+        voiceStatus.textContent = translate('No matching {gender} voice was identified. Using {voice} instead.')
+          .replace('{gender}', gender).replace('{voice}', result.voice.name);
       } else {
-        voiceStatus.textContent = `Using ${result.voice.name}. Voice labels are based on device names and may not be accurate.`;
+        voiceStatus.textContent = translate('Using {voice}. Voice labels are based on device names and may not be accurate.')
+          .replace('{voice}', result.voice.name);
       }
     }
     let activeVoiceMatched = false;
@@ -619,7 +693,7 @@
       if (!speechSupported) {
         describeVoice({ voice: null, matched: false });
       } else if (voiceLocked) {
-        describeVoice({ voice: activeVoice, matched: activeVoiceMatched });
+        describeVoice({ voice: activeVoice, matched: activeVoiceMatched, languageMatched: activeVoiceLanguageMatched });
       } else {
         describeVoice(chooseDeviceVoice());
       }
@@ -627,25 +701,26 @@
     previewVoice.disabled = !speechSupported;
     previewVoice.addEventListener('click', () => {
       voiceLocked = false;
-      speak('How do you feel?');
+      speak(translate('How do you feel?'));
     });
     if (speechSupported) window.speechSynthesis.addEventListener('voiceschanged', refreshVoiceStatus);
-    refreshVoiceStatus();
 
     function speak(text) {
-      if (!speechSupported || !settings.voice) return;
+      if (!speechSupported || !settings.voice || settings.muted) return;
       window.speechSynthesis.cancel();
       if (!voiceLocked) {
         const result = chooseDeviceVoice();
         activeVoice = result.voice;
         activeVoiceMatched = result.matched;
+        activeVoiceLanguageMatched = result.languageMatched;
         voiceLocked = true;
         refreshVoiceStatus();
       }
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.voice = activeVoice;
-      utterance.lang = utterance.voice ? utterance.voice.lang : 'en-US';
+      utterance.lang = speechLocales[settings.language] || (utterance.voice ? utterance.voice.lang : 'en-US');
       utterance.rate = settings.rate;
+      utterance.volume = settings.volume;
       utterance.pitch = 1.05;
       window.speechSynthesis.speak(utterance);
     }
@@ -653,13 +728,21 @@
     const settingsScreen = document.getElementById('settings-screen');
     const settingsStatus = document.getElementById('settings-status');
     const settingsKey = 'bearly-chat-settings';
-    const defaultSettings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false };
-    let settings = { ...defaultSettings };
+    const defaultSettings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: false };
     let screenBeforeSettings = 1;
     try {
       migrateStorageKey(localStorage, 'toddle-cation-settings', settingsKey);
       const stored = JSON.parse(localStorage.getItem(settingsKey));
-      if (stored && typeof stored === 'object') settings = { ...defaultSettings, ...stored };
+      if (stored && typeof stored === 'object') {
+        settings = { ...defaultSettings, ...stored };
+        if (!['female', 'male'].includes(settings.voiceGender)) settings.voiceGender = defaultSettings.voiceGender;
+        if (!Object.prototype.hasOwnProperty.call(speechLocales, settings.language)) settings.language = defaultSettings.language;
+        if (!Number.isFinite(settings.volume) || settings.volume < 0 || settings.volume > 1) settings.volume = defaultSettings.volume;
+        if (!Number.isFinite(settings.rate) || settings.rate < 0.5 || settings.rate > 1.5) settings.rate = defaultSettings.rate;
+        ['voice', 'largeText', 'contrast', 'reduceMotion', 'muted', 'randomize', 'doNotSave'].forEach(key => {
+          if (typeof settings[key] !== 'boolean') settings[key] = defaultSettings[key];
+        });
+      }
     } catch (error) {
       console.error('Unable to read settings:', error);
     }
@@ -673,6 +756,20 @@
       document.getElementById('setting-large-text').checked = settings.largeText;
       document.getElementById('setting-contrast').checked = settings.contrast;
       document.getElementById('setting-motion').checked = settings.reduceMotion;
+      document.getElementById('setting-voice-gender').value = settings.voiceGender;
+      document.getElementById('setting-language').value = settings.language;
+      document.getElementById('setting-volume').value = settings.volume;
+      document.getElementById('setting-volume-value').textContent = `${Math.round(settings.volume * 100)}%`;
+      document.getElementById('setting-mute').checked = settings.muted;
+      document.getElementById('setting-randomize').checked = settings.randomize;
+      document.getElementById('setting-do-not-save').checked = settings.doNotSave;
+      document.getElementById('privacy-notice').textContent = translate(settings.doNotSave
+        ? 'Do Not Save is on. Your check-in and notes will not be saved, and location will not be requested.'
+        : 'With location permission, your check-in, notes, location and browser/device information will be saved on this device.');
+      document.getElementById('notes-description').textContent = translate(settings.doNotSave
+        ? 'Notes are not stored while Do Not Save is enabled.'
+        : 'Device owner notes are saved with this check-in and included in the CSV export.');
+      applyLanguage();
     }
     function saveSettings() {
       try {
@@ -680,14 +777,51 @@
         settingsStatus.textContent = '';
       } catch (error) {
         console.error('Unable to save settings:', error);
-        settingsStatus.textContent = 'Could not save settings on this device. They will reset when you close the app.';
+        settingsStatus.textContent = translate('Could not save settings on this device. They will reset when you close the app.');
       }
     }
     applySettings();
+    refreshVoiceStatus();
     [['setting-voice', 'voice', 'checked'], ['setting-large-text', 'largeText', 'checked'], ['setting-contrast', 'contrast', 'checked'], ['setting-motion', 'reduceMotion', 'checked']].forEach(([id, key]) => {
       document.getElementById(id).addEventListener('change', event => {
         settings[key] = event.target.checked;
         if (key === 'voice' && speechSupported && !settings.voice) window.speechSynthesis.cancel();
+        applySettings();
+        saveSettings();
+      });
+      document.getElementById('setting-voice-gender').addEventListener('change', event => {
+        settings.voiceGender = event.target.value;
+        voiceLocked = false;
+        refreshVoiceStatus();
+        saveSettings();
+      });
+      document.getElementById('setting-language').addEventListener('change', event => {
+        settings.language = event.target.value;
+        voiceLocked = false;
+        applySettings();
+        refreshVoiceStatus();
+        updateFeelingChoices();
+        saveSettings();
+      });
+      document.getElementById('setting-volume').addEventListener('input', event => {
+        settings.volume = Number(event.target.value);
+        applySettings();
+        saveSettings();
+      });
+      document.getElementById('setting-mute').addEventListener('change', event => {
+        settings.muted = event.target.checked;
+        if (settings.muted && speechSupported) window.speechSynthesis.cancel();
+        applySettings();
+        saveSettings();
+      });
+      document.getElementById('setting-randomize').addEventListener('change', event => {
+        settings.randomize = event.target.checked;
+        randomizeChoices();
+        applySettings();
+        saveSettings();
+      });
+      document.getElementById('setting-do-not-save').addEventListener('change', event => {
+        settings.doNotSave = event.target.checked;
         applySettings();
         saveSettings();
       });
@@ -702,7 +836,7 @@
       const wasEnabled = settings.voice;
       settings.voice = true;
       voiceLocked = false;
-      speak('How do you feel?');
+      speak(translate('How do you feel?'));
       settings.voice = wasEnabled;
     });
     document.getElementById('open-settings').addEventListener('click', () => {
@@ -728,22 +862,23 @@
         await useCheckInDatabase('readwrite', store => store.clear());
         savedCheckIn = null;
         savedCheckInKey = undefined;
-        settingsStatus.textContent = 'All saved check-ins were cleared from this device.';
+        settingsStatus.textContent = translate('All saved check-ins were cleared from this device.');
       } catch (error) {
         console.error('Unable to clear check-ins:', error);
-        settingsStatus.textContent = 'Could not clear saved check-ins. They are still saved on this device.';
+        settingsStatus.textContent = translate('Could not clear saved check-ins. They are still saved on this device.');
       }
     });
     document.getElementById('settings-demo').addEventListener('click', () => {
       try {
         localStorage.removeItem('bearly-chat-demo-invited');
         localStorage.removeItem('toddle-cation-demo-invited');
-        settingsStatus.textContent = 'The demo invitation will show the next time the installed app opens.';
+        settingsStatus.textContent = translate('The demo invitation will show the next time the installed app opens.');
       } catch (error) {
         console.error('Unable to reset demo invitation:', error);
-        settingsStatus.textContent = 'Could not reset the demo invitation.';
+        settingsStatus.textContent = translate('Could not reset the demo invitation.');
       }
     });
+    document.getElementById('settings-help').addEventListener('click', () => helpDialog.showModal());
 
     function showScreen(step) {
       settingsScreen.hidden = true;
@@ -758,6 +893,23 @@
       heading.focus();
       window.scrollTo(0, 0);
       speak(heading.textContent);
+    }
+
+    function randomizeChoices() {
+      const orders = [
+        [feelingChoices, originalFeelingOrder],
+        [colorChoices, originalColorOrder]
+      ];
+      orders.forEach(([choices, originalOrder]) => originalOrder.forEach(choice => choices[0].parentNode.appendChild(choice)));
+      if (!settings.randomize) return;
+      orders.forEach(([choices]) => {
+        const shuffled = choices.slice();
+        for (let index = shuffled.length - 1; index > 0; index--) {
+          const otherIndex = Math.floor(Math.random() * (index + 1));
+          [shuffled[index], shuffled[otherIndex]] = [shuffled[otherIndex], shuffled[index]];
+        }
+        shuffled.forEach(choice => choices[0].parentNode.appendChild(choice));
+      });
     }
 
     function openCheckInDatabase() {
@@ -901,18 +1053,19 @@
     });
     cancelSaveButton.addEventListener('click', cancelSave);
     saveButton.addEventListener('click', () => {
+      if (settings.doNotSave) return;
       if (!window.isSecureContext || !navigator.geolocation) {
-        locationStatus.textContent = 'Location is unavailable. Open the app on HTTPS or localhost and enable location on your device.';
+        locationStatus.textContent = translate('Location is unavailable. Open the app on HTTPS or localhost and enable location on your device.');
         return;
       }
       const request = ++locationRequest;
       saveButton.disabled = true;
-      locationStatus.textContent = 'Waiting for location permission and your device location...';
+      locationStatus.textContent = translate('Waiting for location permission and your device location...');
       navigator.geolocation.getCurrentPosition(async position => {
         if (request !== locationRequest || !locationDialog.open) return;
         savingCheckIn = true;
         cancelSaveButton.disabled = true;
-        locationStatus.textContent = 'Saving your check-in...';
+        locationStatus.textContent = translate('Saving your check-in...');
         const checkIn = {
           ...pendingCheckIn,
           latitude: position.coords.latitude,
@@ -923,7 +1076,7 @@
           savedCheckInKey = await useCheckInDatabase('readwrite', store => store.add({ ...checkIn, pendingDownload: true }));
         } catch (error) {
           console.error('Unable to save check-in:', error);
-          locationStatus.textContent = 'Could not save on this device. Check your browser storage settings and try again.';
+          locationStatus.textContent = translate('Could not save on this device. Check your browser storage settings and try again.');
           saveButton.disabled = false;
           return;
         } finally {
@@ -931,39 +1084,46 @@
           cancelSaveButton.disabled = false;
         }
         savedCheckIn = checkIn;
+        document.getElementById('thank-saved-status').textContent = translate('Your check-in has been saved on this device.');
+        document.getElementById('download-check-in').disabled = false;
+        document.getElementById('download-check-in').classList.remove('save-option-disabled');
+        document.getElementById('download-check-in').textContent = translate('Save and Download Check-In');
         document.getElementById('download-check-in-status').textContent = '';
         cancelSave();
         thanks.showModal();
-        speak('Thank you!');
+        speak(translate('Thank you!'));
       }, error => {
         if (request !== locationRequest || !locationDialog.open) return;
         saveButton.disabled = false;
-        locationStatus.textContent = error.code === 1
+        locationStatus.textContent = translate(error.code === 1
           ? 'Location permission was denied. Allow location in your browser and device settings, then try again.'
-          : 'Could not get your location. Check your device location settings and try again.';
+          : 'Could not get your location. Check your device location settings and try again.');
       }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
     });
 
     document.getElementById('open-history').addEventListener('click', async () => {
       historyList.replaceChildren();
-      historyStatus.textContent = 'Loading saved check-ins...';
+      historyStatus.textContent = translate('Loading saved check-ins...');
       historyDialog.showModal();
       try {
         const checkIns = await useCheckInDatabase('readonly', store => store.getAll());
         const pendingCount = checkIns.filter(checkIn => checkIn.pendingDownload).length;
         historyStatus.textContent = pendingCount
-          ? `${pendingCount} check-in${pendingCount === 1 ? '' : 's'} waiting to be downloaded.`
+          ? translate('{count} check-in(s) waiting to be downloaded.').replace('{count}', pendingCount)
           : '';
-        if (checkIns.length === 0) historyStatus.textContent = 'No saved check-ins yet.';
+        if (checkIns.length === 0) historyStatus.textContent = translate('No saved check-ins yet.');
         checkIns.slice().reverse().forEach(checkIn => {
           const item = document.createElement('li');
           const notes = checkIn.notes ? ` Notes: ${checkIn.notes}` : '';
-          item.textContent = `${checkIn.localDateTime} — ${checkIn.feeling}, ${checkIn.color}.${notes} Location: ${checkIn.latitude}, ${checkIn.longitude} (accuracy: ${Math.round(checkIn.accuracyMeters)} m).`;
+          item.textContent = translate('{date} — {feeling}, {color}.{notes} Location: {latitude}, {longitude} (accuracy: {accuracy} m).')
+            .replace('{date}', checkIn.localDateTime).replace('{feeling}', checkIn.feeling).replace('{color}', checkIn.color)
+            .replace('{notes}', notes).replace('{latitude}', checkIn.latitude).replace('{longitude}', checkIn.longitude)
+            .replace('{accuracy}', Math.round(checkIn.accuracyMeters));
           historyList.appendChild(item);
         });
       } catch (error) {
         console.error('Unable to read check-ins:', error);
-        historyStatus.textContent = 'Could not read saved check-ins. Check your browser storage settings.';
+        historyStatus.textContent = translate('Could not read saved check-ins. Check your browser storage settings.');
       }
     });
     function checkInsCsv(checkIns, summaryOnly = false) {
@@ -1031,7 +1191,7 @@
           return request;
         });
         if (checkIns.length === 0) {
-          historyStatus.textContent = 'No saved check-ins to download.';
+          historyStatus.textContent = translate('No saved check-ins to download.');
           return;
         }
         const file = checkInsCsv(checkIns);
@@ -1041,20 +1201,20 @@
           const writable = await handle.createWritable();
           await writable.write(file);
           await writable.close();
-          historyStatus.textContent = 'Saved checkins/checkins.csv in your chosen folder.';
+          historyStatus.textContent = translate('Saved checkins/checkins.csv in your chosen folder.');
         } else {
           downloadCsv(file, 'checkins.csv');
-          historyStatus.textContent = 'Download started. Find checkins.csv in your browser’s downloads and move it to a checkins folder if you wish.';
+          historyStatus.textContent = translate('Download started. Find checkins.csv in your browser’s downloads and move it to a checkins folder if you wish.');
         }
-        historyStatus.textContent += ' Choose whether to clear or keep these downloaded records.';
+        historyStatus.textContent += ` ${translate('Choose whether to clear or keep these downloaded records.')}`;
         showDownloadChoice(downloadedKeys);
       } catch (error) {
         if (error.name === 'AbortError') {
-          historyStatus.textContent = 'Export cancelled.';
+          historyStatus.textContent = translate('Export cancelled.');
           return;
         }
         console.error('Unable to download check-ins:', error);
-        historyStatus.textContent = 'Could not export check-ins. Check folder permissions and browser storage settings, then try again.';
+        historyStatus.textContent = translate('Could not export check-ins. Check folder permissions and browser storage settings, then try again.');
       }
     });
     const clearDownloadedButton = document.getElementById('clear-downloaded-data');
@@ -1087,10 +1247,10 @@
           savedCheckInKey = undefined;
         }
         downloadChoiceDialog.close();
-        historyStatus.textContent = 'Downloaded check-in data cleared from this device.';
+        historyStatus.textContent = translate('Downloaded check-in data cleared from this device.');
       } catch (error) {
         console.error('Unable to clear downloaded check-ins:', error);
-        status.textContent = 'Could not clear the downloaded data. It is still saved on this device.';
+        status.textContent = translate('Could not clear the downloaded data. It is still saved on this device.');
       } finally {
         setDownloadChoiceBusy(false);
       }
@@ -1100,28 +1260,29 @@
       try {
         await clearDownloadCache(downloadedCheckInKeys);
         downloadChoiceDialog.close();
-        historyStatus.textContent = 'Downloaded check-ins remain saved on this device for later.';
+        historyStatus.textContent = translate('Downloaded check-ins remain saved on this device for later.');
       } catch (error) {
         console.error('Unable to update the download queue:', error);
-        downloadChoiceStatus.textContent = 'Could not update the download queue. Your check-ins are still saved on this device.';
+        downloadChoiceStatus.textContent = translate('Could not update the download queue. Your check-ins are still saved on this device.');
       } finally {
         setDownloadChoiceBusy(false);
       }
     });
     keepPendingButton.addEventListener('click', () => {
       downloadChoiceDialog.close();
-      historyStatus.textContent = 'Check-ins remain saved on this device.';
+      historyStatus.textContent = translate('Check-ins remain saved on this device.');
     });
     document.getElementById('close-history').addEventListener('click', () => historyDialog.close());
 
     document.querySelectorAll('.sound').forEach(button => {
-      button.addEventListener('click', () => speak(button.dataset.speech));
+      button.addEventListener('click', () => speak(translate(button.dataset.speech)));
       if (!speechSupported) {
         button.disabled = true;
-        button.textContent = 'Voice unavailable in this browser';
+        button.textContent = translate('Voice unavailable in this browser');
       }
     });
     const feelingChoices = Array.from(document.querySelector('.feelings').children);
+    const originalFeelingOrder = feelingChoices.slice();
     const addFeelingDialog = document.getElementById('add-feeling-dialog');
     function updateFeelingChoices() {
       feelingChoices.forEach(choice => {
@@ -1130,7 +1291,7 @@
         choice.disabled = selected && !replaceFeelings;
       });
       document.getElementById('selected-feelings').textContent = selectedFeelings.length
-        ? `Chosen: ${selectedFeelings.map(choice => choice.lastChild.textContent.trim()).join(', ')}`
+        ? translate('Chosen: {feelings}').replace('{feelings}', selectedFeelings.map(choice => choice.lastChild.textContent.trim()).join(', '))
         : '';
       document.getElementById('feelings-done').hidden = !selectedFeelings.length;
     }
@@ -1154,7 +1315,7 @@
         showScreen(2);
       } else {
         addFeelingDialog.showModal();
-        speak('Would you like to add another feeling?');
+        speak(translate('Would you like to add another feeling?'));
       }
     });
     function declineFeeling() {
@@ -1181,6 +1342,8 @@
       finishFeelings();
     });
     const colorChoices = Array.from(document.querySelector('.colors').children);
+    const originalColorOrder = colorChoices.slice();
+    randomizeChoices();
     colorChoices.forEach(button => button.addEventListener('click', () => {
       pendingColor = button.getAttribute('aria-label');
       document.getElementById('color-confirm-swatch').dataset.color = button.dataset.color;
@@ -1218,10 +1381,29 @@
         timeZoneOffsetMinutes: date.getTimezoneOffset(),
         device: navigator.userAgent || navigator.platform || 'Not available'
       };
-      saveButton.disabled = false;
+      const locationEnabledDescription = 'An adult can allow location to save the feelings, color, notes, local date and time, device location, and browser/device information on this device. Location is required to save.';
+      document.getElementById('location-heading').textContent = translate(settings.doNotSave ? 'Do Not Save is enabled' : 'Save this check-in?');
+      document.getElementById('location-description').textContent = translate(settings.doNotSave
+        ? 'The check-in was not saved. Location was not requested.'
+        : locationEnabledDescription);
+      saveButton.disabled = settings.doNotSave;
+      saveButton.classList.toggle('save-option-disabled', settings.doNotSave);
+      saveButton.textContent = translate(settings.doNotSave ? 'Saving is turned off' : 'Allow location and save');
+      document.getElementById('done-without-saving').hidden = !settings.doNotSave;
       locationStatus.textContent = '';
       locationDialog.showModal();
     }
+    document.getElementById('done-without-saving').addEventListener('click', () => {
+      cancelSave();
+      savedCheckIn = null;
+      savedCheckInKey = undefined;
+      document.getElementById('thank-saved-status').textContent = translate('This check-in was not saved on this device.');
+      document.getElementById('download-check-in').disabled = true;
+      document.getElementById('download-check-in').classList.add('save-option-disabled');
+      document.getElementById('download-check-in-status').textContent = translate('The check-in was not saved. Location was not requested.');
+      thanks.showModal();
+      speak(translate('Thank you!'));
+    });
     document.getElementById('continue-to-save').addEventListener('click', () => continueToSave(true));
     document.getElementById('skip-notes').addEventListener('click', () => continueToSave(false));
     notesScreen.addEventListener('keydown', event => {
@@ -1234,7 +1416,7 @@
       updateFeelingChoices();
       showScreen(1);
     });
-    document.getElementById('thank-message').addEventListener('click', () => speak('Thank you!'));
+    document.getElementById('thank-message').addEventListener('click', () => speak(translate('Thank you!')));
     document.getElementById('download-check-in').addEventListener('click', async () => {
       const status = document.getElementById('download-check-in-status');
       if (!savedCheckIn) {
@@ -1249,6 +1431,25 @@
         console.error('Unable to download check-in:', error);
         status.textContent = 'Could not download the check-in. It is still saved on this device.';
       }
+    });
+    document.getElementById('another-check-in').addEventListener('click', () => {
+      if (speechSupported) window.speechSynthesis.cancel();
+      thanks.close();
+      selectedFeelings = [];
+      replaceFeelings = false;
+      pendingFeeling = null;
+      selectedColor = '';
+      pendingColor = null;
+      pendingCheckIn = null;
+      savedCheckIn = null;
+      savedCheckInKey = undefined;
+      document.getElementById('owner-notes').value = '';
+      document.getElementById('download-check-in-status').textContent = '';
+      document.getElementById('download-check-in').disabled = false;
+      document.getElementById('download-check-in').classList.remove('save-option-disabled');
+      randomizeChoices();
+      updateFeelingChoices();
+      showScreen(1);
     });
     document.getElementById('close-thanks').addEventListener('click', () => {
       if (speechSupported) window.speechSynthesis.cancel();
@@ -1287,7 +1488,7 @@
           return;
         }
       }
-      speak('How do you feel?');
+      speak(translate('How do you feel?'));
     }
     window.addEventListener('load', () => {
       pageLoaded = true;
