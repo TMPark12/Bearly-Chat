@@ -76,10 +76,11 @@ h1 { margin: 0; font-family: Nunito, sans-serif; font-size: 42px; line-height: 1
 .notes-continue-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .notes-continue-actions button { margin: 12px 0 0; }
 .feelings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; max-width: 760px; margin: 20px auto 0; }
-.feeling-choice { min-width: 0; min-height: 130px; padding: 16px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border: 1px solid #e1e9e1; border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; box-shadow: 0 3px 0 #e9eee7; font-weight: 700; transition: transform .15s, box-shadow .15s; }
+.feeling-choice { min-width: 0; min-height: 130px; padding: 16px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border: 1px solid #e1e9e1; border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; box-shadow: 0 3px 0 #e9eee7; font-weight: 700; transition: transform .15s, box-shadow .15s; container-type: inline-size; }
 .feeling-choice:hover { transform: translateY(-4px); box-shadow: 0 7px 0 #e3eae2; }
 .feeling-choice[aria-pressed="true"] { border: 3px solid var(--teal); background: #e3f0e9; }
 .feeling-emoji { font-size: 64px; line-height: 1.2; }
+.feeling-label { width: 100%; font-size: clamp(.625rem, 10cqi, 1rem); line-height: 1.2; text-align: center; text-wrap: balance; overflow-wrap: anywhere; }
 .back { display: inline-flex; align-items: center; gap: 6px; margin-top: 27px; padding: 8px 0; border: 0; background: transparent; color: #526e64; font-weight: 700; cursor: pointer; }
 .back svg { width: 18px; height: 18px; }
 footer { padding: 20px 32px 25px; text-align: center; color: #89978e; font-size: 12px; }
@@ -131,6 +132,7 @@ button.save-option-disabled:disabled { opacity: .35; }
   .feelings { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
   .feeling-choice { min-height: 110px; padding: 8px 4px; gap: 6px; }
   .feeling-emoji { font-size: 48px; }
+  .feeling-label { font-size: clamp(.5625rem, 10cqi, .875rem); }
 }
 @media (max-width: 600px) {
   .topbar { height: auto; flex-wrap: wrap; gap: 12px; padding: 12px 0; }
