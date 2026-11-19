@@ -68,3 +68,20 @@ test('activates a waiting worker only when an update is requested', async () => 
   await pending;
   assert.equal(activations, 1);
 });
+
+test('removes old app caches without touching unrelated caches', async () => {
+  const handlers = {};
+  const deleted = [];
+  const context = {
+    self: { addEventListener(name, callback) { handlers[name] = callback; } },
+    caches: {
+      keys() { return Promise.resolve(['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'another-app']); },
+      delete(key) { deleted.push(key); return Promise.resolve(true); }
+    }
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../service-worker.js'), 'utf8'), context);
+  let pending;
+  handlers.activate({ waitUntil(promise) { pending = promise; } });
+  await pending;
+  assert.deepEqual(deleted, ['toddle-cation-v29', 'bearly-chat-v29']);
+});

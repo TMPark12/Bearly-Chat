@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toddle-cation-v27';
+const CACHE_NAME = 'bearly-chat-v30';
 const APP_FILES = ['./', './index.html', './location-setup.html', './style.css', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -6,7 +6,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('toddle-cation-') && key !== CACHE_NAME).map(key => caches.delete(key)))));
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => (key.startsWith('toddle-cation-') || key.startsWith('bearly-chat-')) && key !== CACHE_NAME).map(key => caches.delete(key)))));
 });
 
 self.addEventListener('message', event => {

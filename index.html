@@ -18,6 +18,7 @@
       <div class="brand"><img class="brand-mark" src="./icons/icon-180.png" alt=""> Bearly Chat</div>
       <div class="header-actions">
         <span class="connection-status" id="connection-status" role="status" aria-live="polite">Checking connection</span>
+        <button class="help-button" id="open-settings" type="button">Settings</button>
         <button class="help-button" id="open-help" type="button"><span aria-hidden="true">?</span> Help</button>
         <button class="install-button" id="install-button" type="button" aria-label="Install Bearly Chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"/></svg><span>Install app</span></button>
         <div class="step"><span id="step-text">1 of 3</span><span class="step-dots" aria-hidden="true"><span id="dot-one" class="active"></span><span id="dot-two"></span><span id="dot-three"></span></span></div>
@@ -54,6 +55,9 @@
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😨</span>Scared</button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">🤩</span>Excited</button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😴</span>Tired</button>
+          <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😤</span>Frustrated</button>
+          <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😵‍💫</span>Overwhelmed</button>
+          <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">🙈</span>Shy</button>
         </div>
       </section>
       <section id="colors-screen" aria-labelledby="colors-heading" hidden>
@@ -92,6 +96,34 @@
               <button class="dialog-secondary" id="skip-notes" type="button">Skip notes and continue</button>
             </div>
           </div>
+        </div>
+      </section>
+      <section id="settings-screen" aria-labelledby="settings-heading" hidden>
+        <div class="settings-panel">
+          <h1 id="settings-heading" tabindex="-1">Settings</h1>
+          <p class="subtitle">Settings are saved on this device.</p>
+          <fieldset>
+            <legend>Voice</legend>
+            <label class="setting-row"><input type="checkbox" id="setting-voice"> Read questions aloud</label>
+            <label class="setting-row" for="setting-rate">Speech rate: <output id="setting-rate-value" for="setting-rate"></output></label>
+            <input type="range" id="setting-rate" min="0.5" max="1.5" step="0.1">
+            <button class="dialog-secondary" id="settings-preview-voice" type="button">Hear voice</button>
+          </fieldset>
+          <fieldset>
+            <legend>Display</legend>
+            <label class="setting-row"><input type="checkbox" id="setting-large-text"> Larger text</label>
+            <label class="setting-row"><input type="checkbox" id="setting-contrast"> High-contrast mode</label>
+            <label class="setting-row"><input type="checkbox" id="setting-motion"> Reduce motion</label>
+          </fieldset>
+          <fieldset>
+            <legend>Saved data</legend>
+            <button class="dialog-secondary" id="settings-export" type="button">Export check-ins (CSV)</button>
+            <button class="dialog-secondary" id="settings-clear" type="button">Clear saved check-ins</button>
+            <button class="dialog-secondary" id="settings-demo" type="button">Show demo invitation again</button>
+            <p>A backup from an earlier version may remain in browser storage after clearing check-ins. Clear this site's browser data to remove it.</p>
+            <p class="dialog-status" id="settings-status" role="status" aria-live="polite"></p>
+          </fieldset>
+          <button class="close-thanks" id="close-settings" type="button">Done</button>
         </div>
       </section>
     </main>
@@ -145,13 +177,13 @@
       <section class="demo-step" id="demo-step-1" aria-labelledby="demo-step-heading-1">
         <h3 id="demo-step-heading-1" tabindex="-1">1. Pick a feeling</h3>
         <div class="demo-example" aria-hidden="true"><span>😊 Happy</span><span>😢 Sad</span><span>😠 Mad</span></div>
-        <p>Ask the child to choose a face that matches how they feel. In the popup, choose <strong>Yes</strong> to confirm or <strong>No</strong> to choose another face. After confirming, choose whether to add another feeling, up to three different feelings. Choose <strong>No</strong> to continue to colors. The choices appear in a different order each time the app opens.</p>
+        <p>Ask the child to choose a face that matches how they feel. In the popup, choose <strong>Yes</strong> to confirm or <strong>No</strong> to choose another face. After confirming, choose whether to add another feeling, up to three different feelings. Choose <strong>No</strong> to continue to colors.</p>
         <p>Use <strong>Hear the question</strong> to play the question again when a device voice is available.</p>
       </section>
       <section class="demo-step" id="demo-step-2" aria-labelledby="demo-step-heading-2" hidden>
         <h3 id="demo-step-heading-2" tabindex="-1">2. Pick a color</h3>
         <div class="demo-example demo-colors" aria-hidden="true"><span>Red</span><span>Blue</span><span>Yellow</span></div>
-        <p>Choose any color that feels right. In the popup, choose <strong>Yes</strong> to continue or <strong>No</strong> to choose another color. Color choices also appear in a different order each time the app opens.</p>
+        <p>Choose any color that feels right. In the popup, choose <strong>Yes</strong> to continue or <strong>No</strong> to choose another color.</p>
         <p>Select <strong>Back to feelings</strong> to choose the feelings again.</p>
       </section>
       <section class="demo-step" id="demo-step-3" aria-labelledby="demo-step-heading-3" hidden>
@@ -189,6 +221,7 @@
     <h2 id="history-heading">Saved check-ins</h2>
     <p>These are stored in this browser on this device, including notes, location and browser/device information. Check-ins waiting to be downloaded stay queued through app updates.</p>
     <p>Export creates or replaces checkins/checkins.csv in a folder you choose when supported. Otherwise, checkins.csv downloads to your browser's download location.</p>
+    <p>A backup from an earlier version may remain in browser storage after clearing check-ins. Clear this site's browser data to remove it.</p>
     <p class="dialog-status" id="history-status" role="status" aria-live="polite"></p>
     <ol class="history-list" id="history-list"></ol>
     <button class="dialog-secondary" id="download-history" type="button">Export checkins.csv</button>
@@ -206,6 +239,7 @@
   <dialog class="detail-dialog" id="download-choice-dialog" aria-labelledby="download-choice-heading">
     <h2 id="download-choice-heading">You are appreciated</h2>
     <p>Verify that your downloaded file was saved before clearing data. Browser downloads may be cancelled or fail after they start.</p>
+    <p>A backup from an earlier version may remain in browser storage after clearing check-ins. Clear this site's browser data to remove it.</p>
     <p class="dialog-status" id="download-choice-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="clear-downloaded-data" type="button">File saved - clear downloaded data</button>
     <button class="dialog-secondary" id="save-downloaded-data" type="button">File saved - keep data</button>
@@ -244,6 +278,15 @@
     const historyList = document.getElementById('history-list');
     const cancelSaveButton = document.getElementById('cancel-save');
     const legacyStorageKey = 'toddle-cation-check-ins';
+    const databaseName = 'bearly-chat';
+    const oldDatabaseName = 'toddle-cation';
+    function migrateStorageKey(storage, oldKey, newKey) {
+      const oldValue = storage.getItem(oldKey);
+      if (oldValue !== null) {
+        if (storage.getItem(newKey) === null) storage.setItem(newKey, oldValue);
+        storage.removeItem(oldKey);
+      }
+    }
     let installPrompt = null;
     let selectedFeelings = [];
     let replaceFeelings = false;
@@ -590,7 +633,7 @@
     refreshVoiceStatus();
 
     function speak(text) {
-      if (!speechSupported) return;
+      if (!speechSupported || !settings.voice) return;
       window.speechSynthesis.cancel();
       if (!voiceLocked) {
         const result = chooseDeviceVoice();
@@ -602,12 +645,108 @@
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.voice = activeVoice;
       utterance.lang = utterance.voice ? utterance.voice.lang : 'en-US';
-      utterance.rate = 0.92;
+      utterance.rate = settings.rate;
       utterance.pitch = 1.05;
       window.speechSynthesis.speak(utterance);
     }
 
+    const settingsScreen = document.getElementById('settings-screen');
+    const settingsStatus = document.getElementById('settings-status');
+    const settingsKey = 'bearly-chat-settings';
+    const defaultSettings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false };
+    let settings = { ...defaultSettings };
+    let screenBeforeSettings = 1;
+    try {
+      migrateStorageKey(localStorage, 'toddle-cation-settings', settingsKey);
+      const stored = JSON.parse(localStorage.getItem(settingsKey));
+      if (stored && typeof stored === 'object') settings = { ...defaultSettings, ...stored };
+    } catch (error) {
+      console.error('Unable to read settings:', error);
+    }
+    function applySettings() {
+      document.documentElement.classList.toggle('large-text', settings.largeText);
+      document.documentElement.classList.toggle('high-contrast', settings.contrast);
+      document.documentElement.classList.toggle('reduce-motion', settings.reduceMotion);
+      document.getElementById('setting-voice').checked = settings.voice;
+      document.getElementById('setting-rate').value = settings.rate;
+      document.getElementById('setting-rate-value').textContent = `${Number(settings.rate).toFixed(2)}x`;
+      document.getElementById('setting-large-text').checked = settings.largeText;
+      document.getElementById('setting-contrast').checked = settings.contrast;
+      document.getElementById('setting-motion').checked = settings.reduceMotion;
+    }
+    function saveSettings() {
+      try {
+        localStorage.setItem(settingsKey, JSON.stringify(settings));
+        settingsStatus.textContent = '';
+      } catch (error) {
+        console.error('Unable to save settings:', error);
+        settingsStatus.textContent = 'Could not save settings on this device. They will reset when you close the app.';
+      }
+    }
+    applySettings();
+    [['setting-voice', 'voice', 'checked'], ['setting-large-text', 'largeText', 'checked'], ['setting-contrast', 'contrast', 'checked'], ['setting-motion', 'reduceMotion', 'checked']].forEach(([id, key]) => {
+      document.getElementById(id).addEventListener('change', event => {
+        settings[key] = event.target.checked;
+        if (key === 'voice' && speechSupported && !settings.voice) window.speechSynthesis.cancel();
+        applySettings();
+        saveSettings();
+      });
+    });
+    document.getElementById('setting-rate').addEventListener('input', event => {
+      settings.rate = Number(event.target.value);
+      applySettings();
+      saveSettings();
+    });
+    document.getElementById('settings-preview-voice').disabled = !speechSupported;
+    document.getElementById('settings-preview-voice').addEventListener('click', () => {
+      const wasEnabled = settings.voice;
+      settings.voice = true;
+      voiceLocked = false;
+      speak('How do you feel?');
+      settings.voice = wasEnabled;
+    });
+    document.getElementById('open-settings').addEventListener('click', () => {
+      if (!settingsScreen.hidden) return;
+      screenBeforeSettings = [feelingsScreen, colorsScreen, notesScreen].findIndex(screen => !screen.hidden) + 1 || 1;
+      [feelingsScreen, colorsScreen, notesScreen].forEach(screen => { screen.hidden = true; });
+      settingsScreen.hidden = false;
+      if (speechSupported) window.speechSynthesis.cancel();
+      document.getElementById('settings-heading').focus();
+      window.scrollTo(0, 0);
+    });
+    document.getElementById('close-settings').addEventListener('click', () => {
+      settingsScreen.hidden = true;
+      if (speechSupported) window.speechSynthesis.cancel();
+      const heading = [feelingsScreen, colorsScreen, notesScreen][screenBeforeSettings - 1];
+      heading.hidden = false;
+      document.getElementById(['feelings-heading', 'colors-heading', 'notes-heading'][screenBeforeSettings - 1]).focus();
+    });
+    document.getElementById('settings-export').addEventListener('click', () => document.getElementById('open-history').click());
+    document.getElementById('settings-clear').addEventListener('click', async () => {
+      if (!window.confirm('Clear all saved check-ins from this device? Export them first if you want a copy. This cannot be undone.')) return;
+      try {
+        await useCheckInDatabase('readwrite', store => store.clear());
+        savedCheckIn = null;
+        savedCheckInKey = undefined;
+        settingsStatus.textContent = 'All saved check-ins were cleared from this device.';
+      } catch (error) {
+        console.error('Unable to clear check-ins:', error);
+        settingsStatus.textContent = 'Could not clear saved check-ins. They are still saved on this device.';
+      }
+    });
+    document.getElementById('settings-demo').addEventListener('click', () => {
+      try {
+        localStorage.removeItem('bearly-chat-demo-invited');
+        localStorage.removeItem('toddle-cation-demo-invited');
+        settingsStatus.textContent = 'The demo invitation will show the next time the installed app opens.';
+      } catch (error) {
+        console.error('Unable to reset demo invitation:', error);
+        settingsStatus.textContent = 'Could not reset the demo invitation.';
+      }
+    });
+
     function showScreen(step) {
+      settingsScreen.hidden = true;
       feelingsScreen.hidden = step !== 1;
       colorsScreen.hidden = step !== 2;
       notesScreen.hidden = step !== 3;
@@ -623,7 +762,7 @@
 
     function openCheckInDatabase() {
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open('toddle-cation', 1);
+        const request = indexedDB.open(databaseName, 1);
         request.onupgradeneeded = () => {
           request.result.createObjectStore('check-ins', { autoIncrement: true });
           request.result.createObjectStore('metadata');
@@ -634,9 +773,66 @@
       });
     }
 
+    function readOldDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(oldDatabaseName);
+        let absent = false;
+        request.onupgradeneeded = () => {
+          absent = true;
+          request.transaction.abort();
+        };
+        request.onerror = () => absent ? resolve(null) : reject(request.error);
+        request.onblocked = () => reject(new Error('Old database is blocked by another tab'));
+        request.onsuccess = () => {
+          const database = request.result;
+          const transaction = database.transaction(['check-ins', 'metadata'], 'readonly');
+          const store = transaction.objectStore('check-ins');
+          const entries = store.getAll();
+          const keys = store.getAllKeys();
+          const imported = transaction.objectStore('metadata').get('legacy-imported');
+          transaction.oncomplete = () => {
+            database.close();
+            resolve({ entries: entries.result, keys: keys.result, imported: imported.result });
+          };
+          transaction.onabort = transaction.onerror = () => {
+            database.close();
+            reject(transaction.error);
+          };
+        };
+      });
+    }
+
+    async function migrateOldDatabase(database) {
+      const alreadyImported = await new Promise((resolve, reject) => {
+        const transaction = database.transaction('metadata', 'readonly');
+        const marker = transaction.objectStore('metadata').get('old-database-imported');
+        transaction.oncomplete = () => resolve(marker.result);
+        transaction.onabort = transaction.onerror = () => reject(transaction.error);
+      });
+      if (alreadyImported) return;
+      const old = await readOldDatabase();
+      await new Promise((resolve, reject) => {
+        const transaction = database.transaction(['check-ins', 'metadata'], 'readwrite');
+        const metadata = transaction.objectStore('metadata');
+        const marker = metadata.get('old-database-imported');
+        marker.onsuccess = () => {
+          if (marker.result) return;
+          if (old) {
+            const store = transaction.objectStore('check-ins');
+            old.entries.forEach((entry, index) => store.add(entry, old.keys[index]));
+            if (old.imported) metadata.put(true, 'legacy-imported');
+          }
+          metadata.put(true, 'old-database-imported');
+        };
+        transaction.oncomplete = resolve;
+        transaction.onabort = transaction.onerror = () => reject(transaction.error);
+      });
+    }
+
     async function useCheckInDatabase(mode, operation) {
       const database = await openCheckInDatabase();
       try {
+        await migrateOldDatabase(database);
         const legacy = localStorage.getItem(legacyStorageKey);
         if (legacy !== null) {
           const entries = JSON.parse(legacy);
@@ -925,17 +1121,7 @@
         button.textContent = 'Voice unavailable in this browser';
       }
     });
-    function shuffleChoices(container) {
-      const choices = Array.from(container.children);
-      for (let i = choices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [choices[i], choices[j]] = [choices[j], choices[i]];
-      }
-      choices.forEach(choice => container.appendChild(choice));
-      return choices;
-    }
-
-    const feelingChoices = shuffleChoices(document.querySelector('.feelings'));
+    const feelingChoices = Array.from(document.querySelector('.feelings').children);
     const addFeelingDialog = document.getElementById('add-feeling-dialog');
     function updateFeelingChoices() {
       feelingChoices.forEach(choice => {
@@ -994,7 +1180,7 @@
       event.preventDefault();
       finishFeelings();
     });
-    const colorChoices = shuffleChoices(document.querySelector('.colors'));
+    const colorChoices = Array.from(document.querySelector('.colors').children);
     colorChoices.forEach(button => button.addEventListener('click', () => {
       pendingColor = button.getAttribute('aria-label');
       document.getElementById('color-confirm-swatch').dataset.color = button.dataset.color;
@@ -1075,8 +1261,9 @@
     function startApp() {
       if (isInstalled) {
         try {
-          if (!localStorage.getItem('toddle-cation-demo-invited')) {
-            localStorage.setItem('toddle-cation-demo-invited', 'yes');
+          migrateStorageKey(localStorage, 'toddle-cation-demo-invited', 'bearly-chat-demo-invited');
+          if (!localStorage.getItem('bearly-chat-demo-invited')) {
+            localStorage.setItem('bearly-chat-demo-invited', 'yes');
             demoInvitation.showModal();
             return;
           }
@@ -1088,8 +1275,9 @@
       }
       if (!isInstalled) {
         try {
-          if (!sessionStorage.getItem('toddle-cation-install-invited')) {
-            sessionStorage.setItem('toddle-cation-install-invited', 'yes');
+          migrateStorageKey(sessionStorage, 'toddle-cation-install-invited', 'bearly-chat-install-invited');
+          if (!sessionStorage.getItem('bearly-chat-install-invited')) {
+            sessionStorage.setItem('bearly-chat-install-invited', 'yes');
             installInvitation.showModal();
             return;
           }

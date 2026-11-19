@@ -71,7 +71,7 @@ function createApp(options = {}) {
   const handlers = {};
   const storage = options.storageValues || new Map();
   const records = options.records || [];
-  const metadata = new Map();
+  const metadata = options.metadata || new Map();
   if (options.legacy) storage.set('toddle-cation-check-ins', JSON.stringify(options.legacy));
   const localStorage = {
     getItem(key) { if (options.storageError) throw new Error('Storage unavailable'); return storage.get(key) ?? null; },
@@ -109,7 +109,8 @@ function createApp(options = {}) {
       speak(utterance) { spoken.push(utterance.text); utterances.push(utterance); }
     };
   }
-  const database = {
+  function makeDatabase(records, metadata) {
+    return {
     createObjectStore() {},
     close() {},
     transaction() {
@@ -134,7 +135,11 @@ function createApp(options = {}) {
           return request;
         }
         return {
-          add(value) { return execute(() => { records.push(value); return records.length; }); },
+          add(value, key) { return execute(() => {
+            if (key !== undefined) { records[key - 1] = value; return key; }
+            records.push(value);
+            return records.length;
+          }); },
           getAll() { return execute(() => records.slice()); },
           getAllKeys() { return execute(() => records.map((_, index) => index + 1)); },
           get(key) { return execute(() => name === 'metadata' ? metadata.get(key) : records[key - 1]); },
@@ -145,10 +150,18 @@ function createApp(options = {}) {
       };
       return transaction;
     }
-  };
+    };
+  }
+  const database = makeDatabase(records, metadata);
+  const oldDatabase = options.oldRecords ? makeDatabase(options.oldRecords, new Map(options.oldMetadata)) : null;
   let created = false;
   const indexedDB = {
     open(name) {
+      if (name === 'toddle-cation') {
+        const request = { result: oldDatabase, transaction: { abort() { queueMicrotask(() => request.onerror()); } } };
+        queueMicrotask(() => oldDatabase ? request.onsuccess() : request.onupgradeneeded());
+        return request;
+      }
       if (options.onOpenDatabase) options.onOpenDatabase(name);
       const request = { result: database };
       queueMicrotask(() => {
@@ -164,12 +177,14 @@ function createApp(options = {}) {
   const sessionValues = options.sessionValues || new Map();
   const sessionStorage = {
     getItem(key) { return sessionValues.get(key) ?? null; },
-    setItem(key, value) { sessionValues.set(key, value); }
+    setItem(key, value) { sessionValues.set(key, value); },
+    removeItem(key) { sessionValues.delete(key); }
   };
   const URL = { createObjectURL(blob) { if (options.downloadError) throw new Error('Download unavailable'); downloads.push(blob); return 'blob:download'; }, revokeObjectURL() {} };
   const Blob = globalThis.Blob;
   const document = {
     body: element(),
+    documentElement: element(),
     getElementById(id) { assert(elements.has(id), `Missing ${id}`); return elements.get(id); },
     querySelector(selector) { return { '.feelings': feelings, '.colors': colors }[selector] || null; },
     querySelectorAll(selector) { return { '.feeling-choice': feelingChoices, '.color-choice': colorChoices, '.sound': [sound] }[selector]; },
@@ -301,14 +316,14 @@ test('help and printable demo include the installation website link', () => {
   }
 });
 
-test('shuffles the feeling choices on load while keeping each emoji paired with its label', () => {
+test('keeps the feeling choices in their original order on load', () => {
   const app = createApp();
-  assert.deepEqual(app.feelingOrder, ['Sad', 'Mad', 'Happy']);
+  assert.deepEqual(app.feelingOrder, ['Happy', 'Sad', 'Mad']);
 });
 
-test('shuffles the color choices on load while keeping each swatch paired with its label', () => {
+test('keeps the color choices in their original order on load', () => {
   const app = createApp();
-  assert.deepEqual(app.colorOrder, ['Red', 'Yellow', 'Blue']);
+  assert.deepEqual(app.colorOrder, ['Blue', 'Red', 'Yellow']);
 });
 
 test('uses a female device voice even when a male preference was previously saved', async () => {
@@ -373,9 +388,47 @@ test('Bearly Chat retains the existing installed identity and saved check-ins', 
   const app = createApp({ records, onOpenDatabase(name) { databaseName = name; } });
   app.elements.get('open-history').click();
   await flush();
-  assert.equal(databaseName, 'toddle-cation');
+  assert.equal(databaseName, 'bearly-chat');
   assert.equal(app.records.length, 1);
   assert.match(app.elements.get('history-list').children[0].textContent, /Happy, Blue/);
+});
+
+test('migrates existing database records once and preserves the old backup', async () => {
+  const oldRecords = [{ feeling: 'Happy', color: 'Blue', localDateTime: 'Today', latitude: 42, longitude: -71, accuracyMeters: 10, pendingDownload: true }];
+  const records = [];
+  const metadata = new Map();
+  const storageValues = new Map([['toddle-cation-check-ins', JSON.stringify(oldRecords)]]);
+  const options = { oldRecords, oldMetadata: [['legacy-imported', true]], records, metadata, storageValues };
+  const app = createApp(options);
+  app.elements.get('open-history').click();
+  await flush();
+  assert.equal(records.length, 1);
+  assert.equal(records[0].pendingDownload, true);
+  assert.equal(oldRecords.length, 1);
+  assert.equal(storageValues.has('toddle-cation-check-ins'), false);
+
+  const reopened = createApp(options);
+  reopened.elements.get('open-history').click();
+  await flush();
+  assert.equal(records.length, 1);
+  assert.match(reopened.elements.get('history-list').children[0].textContent, /Happy, Blue/);
+});
+
+test('migrates old settings and invitation flags without overwriting newer values', () => {
+  const storageValues = new Map([
+    ['toddle-cation-settings', JSON.stringify({ voice: false })],
+    ['toddle-cation-demo-invited', 'yes']
+  ]);
+  const app = createApp({ storageValues, standalone: true });
+  app.handlers.load();
+  assert.equal(app.elements.get('setting-voice').checked, false);
+  assert.equal(storageValues.has('toddle-cation-settings'), false);
+  assert.equal(storageValues.get('bearly-chat-demo-invited'), 'yes');
+  assert.notEqual(app.elements.get('demo-invitation').open, true);
+
+  storageValues.set('toddle-cation-settings', JSON.stringify({ voice: true }));
+  const reopened = createApp({ storageValues });
+  assert.equal(reopened.elements.get('setting-voice').checked, false);
 });
 
 test('connection indicator follows the browser online and offline events', () => {
@@ -474,7 +527,7 @@ test('up to three distinct confirmed feelings are saved and exported together', 
 
 test('every emoji requires confirmation before asking to add another feeling', () => {
   const app = createApp({ allFeelings: true });
-  assert.equal(app.feelingChoices.length, 9);
+  assert.equal(app.feelingChoices.length, 12);
   for (const choice of app.feelingChoices) {
     choice.click();
     assert.equal(app.elements.get('feeling-dialog').open, true);
@@ -1268,4 +1321,23 @@ test('reports when the update can no longer be started', async () => {
   registration.waiting = null;
   app.elements.get('update-app').click();
   assert.match(app.elements.get('update-status').textContent, /no longer available/i);
+});
+
+test('settings screen saves preferences, mutes speech and returns to the check-in', () => {
+  const app = createApp();
+  const { elements } = app;
+  elements.get('setting-voice').checked = false;
+  elements.get('setting-voice').events.change({ target: elements.get('setting-voice') });
+  assert.equal(JSON.parse(app.storage.get('bearly-chat-settings')).voice, false);
+  const spokenBefore = app.utterances.length;
+  elements.get('thank-message').click();
+  assert.equal(app.utterances.length, spokenBefore);
+  elements.get('setting-rate').events.input({ target: { value: '1.2' } });
+  assert.equal(JSON.parse(app.storage.get('bearly-chat-settings')).rate, 1.2);
+  elements.get('open-settings').click();
+  assert.equal(elements.get('settings-screen').hidden, false);
+  assert.equal(elements.get('feelings-screen').hidden, true);
+  elements.get('close-settings').click();
+  assert.equal(elements.get('settings-screen').hidden, true);
+  assert.equal(elements.get('feelings-screen').hidden, false);
 });
