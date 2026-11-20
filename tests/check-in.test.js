@@ -385,6 +385,34 @@ test('keeps the feeling choices in their original order on load', () => {
   assert.deepEqual(app.feelingOrder, ['Happy', 'Sad', 'Mad']);
 });
 
+test('caterpillar decoration does not become a feeling choice', () => {
+  const screen = html.match(/<section id="feelings-screen"[\s\S]*?<\/section>/)[0];
+  assert.match(screen, /<svg class="caterpillar-head"[^>]*aria-hidden="true"/);
+  const choices = screen.match(/<div class="feelings">([\s\S]*?)<\/div>/)[1];
+  assert.equal((choices.match(/<button class="feeling-choice"/g) || []).length, 13);
+  assert.doesNotMatch(choices, /<svg/);
+  const app = createApp({ allFeelings: true });
+  assert.equal(app.feelingContainer.children.length, 13);
+});
+
+test('bear background is decorative and omitted from printable and high-contrast views', () => {
+  const css = fs.readFileSync(require('node:path').join(__dirname, '../style.css'), 'utf8');
+  assert.match(css, /body::before\s*\{[^}]*url\('\.\/icons\/icon-512\.png'\)[^}]*opacity:\s*\.1[^}]*pointer-events:\s*none/);
+  assert.match(css, /@media print\s*\{\s*body::before\s*\{\s*display:\s*none/);
+  assert.match(css, /html\.high-contrast body::before\s*\{\s*display:\s*none/);
+});
+
+test('shuffled caterpillar choices remain selectable', () => {
+  const app = createApp({ allFeelings: true });
+  app.elements.get('setting-randomize').events.change({ target: { checked: true } });
+  assert.equal(app.feelingContainer.children.length, 13);
+  for (const choice of app.feelingContainer.children) {
+    choice.click();
+    assert.equal(app.elements.get('feeling-confirm-heading').textContent, choice.lastChild.textContent);
+    app.elements.get('decline-feeling').click();
+  }
+});
+
 test('keeps the color choices in their original order on load', () => {
   const app = createApp();
   assert.deepEqual(app.colorOrder, ['Blue', 'Red', 'Yellow']);

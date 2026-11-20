@@ -91,7 +91,7 @@ test('removes old app caches without touching unrelated caches', async () => {
   const context = {
     self: { addEventListener(name, callback) { handlers[name] = callback; } },
     caches: {
-      keys() { return Promise.resolve(['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'bearly-chat-v33', 'bearly-chat-v34', 'bearly-chat-v35', 'bearly-chat-v36', 'bearly-chat-v37', 'bearly-chat-v38', 'bearly-chat-v39', 'another-app']); },
+      keys() { return Promise.resolve(['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'bearly-chat-v33', 'bearly-chat-v34', 'bearly-chat-v35', 'bearly-chat-v36', 'bearly-chat-v37', 'bearly-chat-v38', 'bearly-chat-v39', 'bearly-chat-v40', 'bearly-chat-v41', 'another-app']); },
       delete(key) { deleted.push(key); return Promise.resolve(true); }
     }
   };
@@ -99,5 +99,5 @@ test('removes old app caches without touching unrelated caches', async () => {
   let pending;
   handlers.activate({ waitUntil(promise) { pending = promise; } });
   await pending;
-  assert.deepEqual(deleted, ['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'bearly-chat-v33', 'bearly-chat-v34', 'bearly-chat-v35', 'bearly-chat-v36', 'bearly-chat-v37', 'bearly-chat-v38', 'bearly-chat-v39']);
+  assert.deepEqual(deleted, ['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'bearly-chat-v33', 'bearly-chat-v34', 'bearly-chat-v35', 'bearly-chat-v36', 'bearly-chat-v37', 'bearly-chat-v38', 'bearly-chat-v39', 'bearly-chat-v40', 'bearly-chat-v41']);
 });

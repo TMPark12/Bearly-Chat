@@ -2,6 +2,8 @@
 
 A simple check-in for toddlers to pick up to three feelings and a color that matches how they feel.
 
+Feeling choices appear as colorful segments of a friendly caterpillar, with a layout that adapts to smaller screens.
+
 Serve the app over HTTPS or localhost to use optional location, installation and offline support. To install it on a device, publish all app files (including the `icons` folder) together on an HTTPS web host. No account is required.
 
 Open **Settings** to shuffle the feeling and color choices with **Randomize**, select a device-provided male or female voice (female by default), change speech volume, or mute speech. The interface defaults to English and also supports Spanish, French, German, Portuguese, Russian, Simplified Chinese, Japanese, and Korean. **Do Not Save** is on by default: new check-ins and notes are not stored, location is not requested, and save/download options are disabled. Turn it off in Settings to save check-ins; an existing explicit preference is preserved. Previously saved check-ins remain until cleared. **Save location with check-ins** is off by default; enabling it requests location when saving. The **Help** link explains the app and installation; the privacy notice describes data handling.
