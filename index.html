@@ -59,6 +59,8 @@
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😵‍💫</span><span class="feeling-label">Overwhelmed</span></button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😳</span><span class="feeling-label">Shy</span></button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">🤪</span><span class="feeling-label">Hyper</span></button>
+          <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😰</span><span class="feeling-label">Nervous</span></button>
+          <button class="feeling-choice" id="custom-feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">?</span><span class="feeling-label">Other</span></button>
         </div>
         <div class="heading">
           <h1 id="feelings-heading" tabindex="-1">How do you feel?</h1>
@@ -205,6 +207,14 @@
     <p>Is this how you feel?</p>
     <button class="close-thanks" id="confirm-feeling" type="button">Yes</button>
     <button class="dialog-secondary" id="decline-feeling" type="button" autofocus>No</button>
+  </dialog>
+  <dialog class="detail-dialog" id="custom-feeling-dialog" aria-labelledby="custom-feeling-heading">
+    <h2 id="custom-feeling-heading">What feeling would you like to add?</h2>
+    <label for="custom-feeling-input">Feeling name</label>
+    <input id="custom-feeling-input" type="text" maxlength="40" autocomplete="off">
+    <p class="dialog-status" id="custom-feeling-status" role="status" aria-live="polite"></p>
+    <button class="close-thanks" id="custom-feeling-next" type="button">Continue</button>
+    <button class="dialog-secondary" id="custom-feeling-cancel" type="button">Cancel</button>
   </dialog>
   <dialog class="detail-dialog" id="add-user-dialog" aria-labelledby="add-user-heading">
     <h2 id="add-user-heading">What should we call this user?</h2>
@@ -1814,25 +1824,64 @@
     const feelingChoices = Array.from(document.querySelector('.feelings').children);
     const originalFeelingOrder = feelingChoices.slice();
     const addFeelingDialog = document.getElementById('add-feeling-dialog');
+    const customFeelingChoice = document.getElementById('custom-feeling-choice');
+    const customFeelingDialog = document.getElementById('custom-feeling-dialog');
+    const customFeelingInput = document.getElementById('custom-feeling-input');
+    const customFeelingStatus = document.getElementById('custom-feeling-status');
+    function feelingName(feeling) {
+      return feeling.button ? feeling.button.lastChild.textContent.trim() : feeling.name;
+    }
     function updateFeelingChoices() {
       feelingChoices.forEach(choice => {
-        const selected = selectedFeelings.includes(choice);
+        const selected = choice !== customFeelingChoice && selectedFeelings.some(feeling =>
+          feeling.button === choice || (!feeling.button && feelingName(feeling).toLocaleLowerCase() === choice.lastChild.textContent.trim().toLocaleLowerCase()));
         choice.setAttribute('aria-pressed', String(selected));
         choice.disabled = selected && !replaceFeelings;
       });
       document.getElementById('selected-feelings').textContent = selectedFeelings.length
-        ? translate('Chosen: {feelings}').replace('{feelings}', selectedFeelings.map(choice => choice.lastChild.textContent.trim()).join(', '))
+        ? translate('Chosen: {feelings}').replace('{feelings}', selectedFeelings.map(feelingName).join(', '))
         : '';
       document.getElementById('feelings-done').hidden = !selectedFeelings.length;
     }
-    feelingChoices.forEach(button => button.addEventListener('click', () => {
-      pendingFeeling = button;
-      const name = button.lastChild.textContent.trim();
-      document.getElementById('feeling-confirm-emoji').textContent = button.querySelector('.feeling-emoji').textContent;
+    function confirmFeeling(feeling, emoji) {
+      pendingFeeling = feeling;
+      const name = feelingName(feeling);
+      document.getElementById('feeling-confirm-emoji').textContent = emoji;
       document.getElementById('feeling-confirm-heading').textContent = name;
       feelingDialog.showModal();
       speak(name);
+    }
+    feelingChoices.forEach(button => button.addEventListener('click', () => {
+      if (button === customFeelingChoice) {
+        customFeelingInput.value = '';
+        customFeelingStatus.textContent = '';
+        customFeelingDialog.showModal();
+        customFeelingInput.focus();
+        return;
+      }
+      confirmFeeling({ button }, button.querySelector('.feeling-emoji').textContent);
     }));
+    function submitCustomFeeling() {
+      const name = customFeelingInput.value.trim();
+      if (!name || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) {
+        customFeelingStatus.textContent = translate('Enter a feeling name of up to 40 characters.');
+        return;
+      }
+      if (!replaceFeelings && selectedFeelings.some(feeling => feelingName(feeling).toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        customFeelingStatus.textContent = translate('That feeling has already been chosen.');
+        return;
+      }
+      customFeelingDialog.close();
+      confirmFeeling({ name }, '?');
+    }
+    document.getElementById('custom-feeling-next').addEventListener('click', submitCustomFeeling);
+    customFeelingInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault();
+        submitCustomFeeling();
+      }
+    });
+    document.getElementById('custom-feeling-cancel').addEventListener('click', () => customFeelingDialog.close());
     document.getElementById('confirm-feeling').addEventListener('click', () => {
       if (!pendingFeeling) return;
       if (replaceFeelings) selectedFeelings = [];
@@ -1902,7 +1951,7 @@
     function continueToSave(includeNotes) {
       const date = new Date();
       pendingCheckIn = {
-        feeling: selectedFeelings.map(choice => choice.lastChild.textContent.trim()).join(', '),
+        feeling: selectedFeelings.map(feelingName).join(', '),
         color: selectedColor,
         notes: includeNotes ? document.getElementById('owner-notes').value.trim() : '',
         localDate: date.toLocaleDateString(),

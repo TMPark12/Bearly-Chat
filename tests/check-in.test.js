@@ -72,7 +72,7 @@ function createApp(options = {}) {
   if (options.allFeelings) {
     for (const match of html.matchAll(/<button class="feeling-choice"[^>]*><span class="feeling-emoji"[^>]*>([^<]+)<\/span><span class="feeling-label"[^>]*>([^<]+)<\/span><\/button>/g)) {
       if (['Happy', 'Sad', 'Mad'].includes(match[2])) continue;
-      const choice = element();
+      const choice = match[0].includes('id="custom-feeling-choice"') ? elements.get('custom-feeling-choice') : element();
       choice.lastChild = { textContent: match[2] };
       choice.querySelector = () => ({ textContent: match[1] });
       feelingChoices.push(choice);
@@ -460,10 +460,10 @@ test('caterpillar decoration does not become a feeling choice', () => {
   const screen = html.match(/<section id="feelings-screen"[\s\S]*?<\/section>/)[0];
   assert.match(screen, /<svg class="caterpillar-head"[^>]*aria-hidden="true"/);
   const choices = screen.match(/<div class="feelings">([\s\S]*?)<\/div>/)[1];
-  assert.equal((choices.match(/<button class="feeling-choice"/g) || []).length, 13);
+  assert.equal((choices.match(/<button class="feeling-choice"/g) || []).length, 15);
   assert.doesNotMatch(choices, /<svg/);
   const app = createApp({ allFeelings: true });
-  assert.equal(app.feelingContainer.children.length, 13);
+  assert.equal(app.feelingContainer.children.length, 15);
 });
 
 test('bear background is decorative and omitted from printable and high-contrast views', () => {
@@ -476,8 +476,9 @@ test('bear background is decorative and omitted from printable and high-contrast
 test('shuffled caterpillar choices remain selectable', () => {
   const app = createApp({ allFeelings: true });
   app.elements.get('setting-randomize').events.change({ target: { checked: true } });
-  assert.equal(app.feelingContainer.children.length, 13);
+  assert.equal(app.feelingContainer.children.length, 15);
   for (const choice of app.feelingContainer.children) {
+    if (choice.id === 'custom-feeling-choice') continue;
     choice.click();
     assert.equal(app.elements.get('feeling-confirm-heading').textContent, choice.lastChild.textContent);
     app.elements.get('decline-feeling').click();
@@ -758,8 +759,9 @@ test('up to three distinct confirmed feelings are saved and exported together', 
 
 test('every emoji requires confirmation before asking to add another feeling', () => {
   const app = createApp({ allFeelings: true });
-  assert.equal(app.feelingChoices.length, 13);
+  assert.equal(app.feelingChoices.length, 15);
   for (const choice of app.feelingChoices) {
+    if (choice.id === 'custom-feeling-choice') continue;
     choice.click();
     assert.equal(app.elements.get('feeling-dialog').open, true);
     assert.equal(app.elements.get('feeling-confirm-heading').textContent, choice.lastChild.textContent);
@@ -790,6 +792,105 @@ test('Hyper and Shy use face emojis', () => {
   const choices = Array.from(html.matchAll(/<button class="feeling-choice"[^>]*><span class="feeling-emoji"[^>]*>([^<]+)<\/span><span class="feeling-label"[^>]*>([^<]+)<\/span><\/button>/g));
   assert.ok(choices.some(([, emoji, label]) => emoji === '🤪' && label === 'Hyper'));
   assert.ok(choices.some(([, emoji, label]) => emoji === '😳' && label === 'Shy'));
+});
+
+test('Nervous can be selected and confirmed with translations available', () => {
+  const app = createApp({ allFeelings: true, speech: true });
+  const nervous = app.feelingChoices.find(choice => choice.lastChild.textContent === 'Nervous');
+  assert.ok(nervous);
+  nervous.click();
+  assert.equal(app.elements.get('feeling-confirm-emoji').textContent, '😰');
+  assert.equal(app.elements.get('feeling-confirm-heading').textContent, 'Nervous');
+  assert.deepEqual(app.spoken, ['Nervous']);
+  app.elements.get('confirm-feeling').click();
+  assert.equal(nervous.getAttribute('aria-pressed'), 'true');
+  assert.match(app.elements.get('selected-feelings').textContent, /Nervous/);
+
+  const window = {};
+  vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../translations.js'), 'utf8'), { window });
+  for (const language of ['es', 'fr', 'de', 'pt', 'ru', 'zh', 'ja', 'ko']) {
+    assert.ok(window.BearlyChatTranslations.Nervous[language]);
+  }
+});
+
+test('custom feelings are spoken, confirmed, and saved alongside other feelings', async () => {
+  const app = createApp({ allFeelings: true, speech: true, locationOff: true });
+  const choice = app.elements.get('custom-feeling-choice');
+  for (const name of ['Hopeful', 'Curious']) {
+    choice.click();
+    assert.equal(app.elements.get('custom-feeling-dialog').open, true);
+    app.elements.get('custom-feeling-input').value = ` ${name} `;
+    app.elements.get('custom-feeling-next').click();
+    assert.equal(app.elements.get('custom-feeling-dialog').open, false);
+    assert.equal(app.elements.get('feeling-confirm-emoji').textContent, '?');
+    assert.equal(app.elements.get('feeling-confirm-heading').textContent, name);
+    assert.equal(app.spoken.at(-1), name);
+    app.elements.get('confirm-feeling').click();
+    assert.equal(app.elements.get('add-feeling-dialog').open, true);
+    app.elements.get('add-feeling-yes').click();
+  }
+  app.feeling.click();
+  app.elements.get('confirm-feeling').click();
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  assert.match(app.elements.get('selected-feelings').textContent, /Hopeful, Curious, Happy/);
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  await app.elements.get('save-check-in').click();
+  await flush();
+  assert.equal(app.records[0].feeling, 'Hopeful, Curious, Happy');
+  await app.elements.get('download-check-in').click();
+  assert.match(await app.downloads[0].text(), /"Hopeful, Curious, Happy"/);
+});
+
+test('custom feeling entry validates duplicates and can be cancelled or declined', () => {
+  const app = createApp({ allFeelings: true });
+  const choice = app.elements.get('custom-feeling-choice');
+  const input = app.elements.get('custom-feeling-input');
+  const next = app.elements.get('custom-feeling-next');
+  choice.click();
+  input.value = '   ';
+  next.click();
+  assert.match(app.elements.get('custom-feeling-status').textContent, /Enter a feeling/);
+  app.elements.get('custom-feeling-cancel').click();
+  assert.equal(app.elements.get('selected-feelings').textContent, '');
+  choice.click();
+  input.value = 'Happy';
+  next.click();
+  app.elements.get('decline-feeling').click();
+  assert.equal(app.elements.get('selected-feelings').textContent, '');
+  choice.click();
+  input.value = 'Happy';
+  next.click();
+  app.elements.get('confirm-feeling').click();
+  assert.equal(app.feeling.disabled, true);
+  app.elements.get('add-feeling-yes').click();
+  choice.click();
+  input.value = 'happy';
+  next.click();
+  assert.match(app.elements.get('custom-feeling-status').textContent, /already been chosen/);
+  assert.equal(app.elements.get('custom-feeling-dialog').open, true);
+});
+
+test('returning to feelings preserves custom choices until a replacement is confirmed', () => {
+  const app = createApp({ allFeelings: true });
+  const choice = app.elements.get('custom-feeling-choice');
+  const input = app.elements.get('custom-feeling-input');
+  choice.click();
+  input.value = 'Hopeful';
+  app.elements.get('custom-feeling-next').click();
+  app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-no').click();
+  app.elements.get('back').click();
+  choice.click();
+  app.elements.get('custom-feeling-cancel').click();
+  assert.match(app.elements.get('selected-feelings').textContent, /Hopeful/);
+  choice.click();
+  input.value = 'Hopeful';
+  let prevented = false;
+  input.events.keydown({ key: 'Enter', isComposing: false, preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  app.elements.get('confirm-feeling').click();
+  assert.equal(app.elements.get('selected-feelings').textContent, 'Chosen: Hopeful');
 });
 
 test('choosing no after the second feeling continues and saves both', async () => {
