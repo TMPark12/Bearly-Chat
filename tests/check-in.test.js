@@ -11,10 +11,16 @@ function createApp(options = {}) {
   const elements = new Map();
   let pinSubmitInProgress = null;  // Track async PIN submission
   function element(id = '') {
+    const classes = new Set();
     const node = {
-      id, hidden: false, disabled: false, textContent: '', value: '', dataset: {}, attributes: {}, children: [], events: {},
-      classList: { toggle() {}, add() {}, remove() {} },
-      addEventListener(name, callback) { this.events[name] = callback; },
+      id, hidden: false, disabled: false, textContent: '', value: '', dataset: {}, attributes: {}, children: [], events: {}, listenerCounts: {},
+      classList: {
+        toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); },
+        add(name) { classes.add(name); },
+        remove(name) { classes.delete(name); },
+        contains(name) { return classes.has(name); }
+      },
+      addEventListener(name, callback) { this.events[name] = callback; this.listenerCounts[name] = (this.listenerCounts[name] || 0) + 1; },
       setAttribute(name, value) { this.attributes[name] = value; },
       getAttribute(name) { return this.attributes[name]; },
       appendChild(child) {
@@ -255,7 +261,7 @@ function createApp(options = {}) {
   vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../translations.js'), 'utf8'), { window });
   vm.runInNewContext(script, { document, window, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, SpeechSynthesisUtterance, Math: testMath, setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout, console: { error() {} } });
   return {
-    elements, feeling, sadFeeling, madFeeling, feelingChoices, feelingContainer: feelings, colorChoices, colorContainer: colors, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
+    elements, document, feeling, sadFeeling, madFeeling, feelingChoices, feelingContainer: feelings, colorChoices, colorContainer: colors, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
     feelingOrder: feelings.children.map(choice => choice.lastChild.textContent),
     colorOrder: colors.children.map(choice => choice.getAttribute('aria-label')),
     getRequest: () => request
@@ -1622,6 +1628,24 @@ test('settings screen saves preferences, mutes speech and returns to the check-i
   assert.equal(elements.get('feelings-screen').hidden, false);
 });
 
+test('display checkboxes apply and persist, and settings handlers are registered once', () => {
+  const app = createApp();
+  for (const [id, className] of [['setting-large-text', 'large-text'], ['setting-contrast', 'high-contrast'], ['setting-motion', 'reduce-motion']]) {
+    app.elements.get(id).events.change({ target: { checked: true } });
+    assert.equal(app.document.documentElement.classList.contains(className), true);
+  }
+  const reopened = createApp({ storageValues: app.storage });
+  for (const [id, className] of [['setting-large-text', 'large-text'], ['setting-contrast', 'high-contrast'], ['setting-motion', 'reduce-motion']]) {
+    assert.equal(reopened.elements.get(id).checked, true);
+    assert.equal(reopened.document.documentElement.classList.contains(className), true);
+    reopened.elements.get(id).events.change({ target: { checked: false } });
+    assert.equal(reopened.document.documentElement.classList.contains(className), false);
+  }
+  for (const [id, event] of [['setting-voice-gender', 'change'], ['setting-language', 'change'], ['setting-volume', 'input'], ['setting-mute', 'change'], ['setting-randomize', 'change'], ['setting-do-not-save', 'change']]) {
+    assert.equal(app.elements.get(id).listenerCounts[event], 1);
+  }
+});
+
 test('settings select voice and language, adjust volume, and shuffle choices', () => {
   const voices = [
     { name: 'Samantha', lang: 'en-US' },
@@ -1972,6 +1996,38 @@ test('turning location off stops future location requests', async () => {
   await flush();
   assert.equal(app.getRequest(), undefined);
   assert.equal(app.records[0].latitude, null);
+});
+
+test('settings changes while location is pending prevent saving location or the check-in', async () => {
+  for (const setting of ['setting-save-location', 'setting-do-not-save']) {
+    const app = createApp();
+    select(app);
+    app.elements.get('save-check-in').click();
+    await flush();
+    assert.ok(app.getRequest());
+    app.elements.get(setting).events.change({ target: { checked: setting === 'setting-do-not-save' } });
+    app.getRequest().success(position());
+    await flush();
+    if (setting === 'setting-do-not-save') {
+      assert.equal(app.records.length, 0);
+    } else {
+      assert.equal(app.records.length, 1);
+      assert.equal(app.records[0].latitude, null);
+      assert.equal(app.records[0].longitude, null);
+      assert.equal(app.records[0].accuracyMeters, null);
+    }
+  }
+});
+
+test('turning on Do Not Save while authorization is pending prevents a location request', async () => {
+  const app = createApp();
+  select(app);
+  app.elements.get('save-check-in').click();
+  app.elements.get('setting-do-not-save').events.change({ target: { checked: true } });
+  await flush();
+  assert.equal(app.getRequest(), undefined);
+  assert.equal(app.records.length, 0);
+  assert.equal(app.elements.get('location-status').textContent, 'Saving is turned off');
 });
 
 test('turning off location does not remove location from older check-ins', async () => {

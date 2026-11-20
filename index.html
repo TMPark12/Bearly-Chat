@@ -1094,42 +1094,42 @@
         applySettings();
         saveSettings();
       });
-      document.getElementById('setting-voice-gender').addEventListener('change', event => {
-        settings.voiceGender = event.target.value;
-        voiceLocked = false;
-        refreshVoiceStatus();
-        saveSettings();
-      });
-      document.getElementById('setting-language').addEventListener('change', event => {
-        settings.language = event.target.value;
-        voiceLocked = false;
-        applySettings();
-        refreshVoiceStatus();
-        updateFeelingChoices();
-        saveSettings();
-      });
-      document.getElementById('setting-volume').addEventListener('input', event => {
-        settings.volume = Number(event.target.value);
-        applySettings();
-        saveSettings();
-      });
-      document.getElementById('setting-mute').addEventListener('change', event => {
-        settings.muted = event.target.checked;
-        if (settings.muted && speechSupported) window.speechSynthesis.cancel();
-        applySettings();
-        saveSettings();
-      });
-      document.getElementById('setting-randomize').addEventListener('change', event => {
-        settings.randomize = event.target.checked;
-        randomizeChoices();
-        applySettings();
-        saveSettings();
-      });
-      document.getElementById('setting-do-not-save').addEventListener('change', event => {
-        settings.doNotSave = event.target.checked;
-        applySettings();
-        saveSettings();
-      });
+    });
+    document.getElementById('setting-voice-gender').addEventListener('change', event => {
+      settings.voiceGender = event.target.value;
+      voiceLocked = false;
+      refreshVoiceStatus();
+      saveSettings();
+    });
+    document.getElementById('setting-language').addEventListener('change', event => {
+      settings.language = event.target.value;
+      voiceLocked = false;
+      applySettings();
+      refreshVoiceStatus();
+      updateFeelingChoices();
+      saveSettings();
+    });
+    document.getElementById('setting-volume').addEventListener('input', event => {
+      settings.volume = Number(event.target.value);
+      applySettings();
+      saveSettings();
+    });
+    document.getElementById('setting-mute').addEventListener('change', event => {
+      settings.muted = event.target.checked;
+      if (settings.muted && speechSupported) window.speechSynthesis.cancel();
+      applySettings();
+      saveSettings();
+    });
+    document.getElementById('setting-randomize').addEventListener('change', event => {
+      settings.randomize = event.target.checked;
+      randomizeChoices();
+      applySettings();
+      saveSettings();
+    });
+    document.getElementById('setting-do-not-save').addEventListener('change', event => {
+      settings.doNotSave = event.target.checked;
+      applySettings();
+      saveSettings();
     });
     document.getElementById('setting-save-location').addEventListener('change', event => {
       settings.saveLocation = event.target.checked;
@@ -1532,11 +1532,24 @@
         locationStatus.textContent = translate('Location is unavailable. Open the app on HTTPS or localhost and enable location on your device.');
         return;
       }
-      if (!await requestPin()) return;
+      if (!await requestPin() || !locationDialog.open) return;
+      if (settings.doNotSave) {
+        locationStatus.textContent = translate('Saving is turned off');
+        return;
+      }
+      if (settings.saveLocation && (!window.isSecureContext || !navigator.geolocation)) {
+        locationStatus.textContent = translate('Location is unavailable. Open the app on HTTPS or localhost and enable location on your device.');
+        return;
+      }
       const request = ++locationRequest;
       saveButton.disabled = true;
       const persistCheckIn = async coords => {
         if (request !== locationRequest || !locationDialog.open) return;
+        if (settings.doNotSave) {
+          locationStatus.textContent = translate('Saving is turned off');
+          return;
+        }
+        if (!settings.saveLocation) coords = null;
         savingCheckIn = true;
         cancelSaveButton.disabled = true;
         locationStatus.textContent = translate('Saving your check-in...');
