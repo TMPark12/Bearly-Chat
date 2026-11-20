@@ -9,6 +9,7 @@ const locationSetupHtml = fs.readFileSync(require('node:path').join(__dirname, '
 
 function createApp(options = {}) {
   const elements = new Map();
+  let pinSubmitInProgress = null;  // Track async PIN submission
   function element(id = '') {
     const node = {
       id, hidden: false, disabled: false, textContent: '', value: '', dataset: {}, attributes: {}, children: [], events: {},
@@ -23,7 +24,24 @@ function createApp(options = {}) {
       },
       replaceChildren() { this.children = []; },
       focus() {},
-      showModal() { this.open = true; },
+      showModal() {
+        this.open = true;
+        // Auto-submit PIN in test environment when PIN dialog opens
+        if (this.id === 'pin-dialog') {
+          const pinInput = elements.get('pin-input');
+          const pinConfirm = elements.get('pin-confirm');
+          const pinConfirmContainer = elements.get('pin-confirm-container');
+          const pinSubmit = elements.get('pin-submit');
+          if (pinInput && pinSubmit && !pinSubmit.disabled) {
+            pinInput.value = '1234';
+            pinConfirm.value = pinConfirmContainer?.hidden ? '' : '1234';
+            const result = pinSubmit.click();
+            if (result && typeof result.then === 'function') {
+              pinSubmitInProgress = result.then(() => { pinSubmitInProgress = null; }).catch(() => { pinSubmitInProgress = null; });
+            }
+          }
+        }
+      },
       close() { this.open = false; if (this.events.close) this.events.close(); },
       click() { if (!this.disabled) return this.events.click(); }
     };
@@ -73,7 +91,14 @@ function createApp(options = {}) {
   const records = options.records || [];
   const metadata = options.metadata || new Map();
   if (options.legacy) storage.set('toddle-cation-check-ins', JSON.stringify(options.legacy));
-  const localStorage = {
+  
+  // Pre-populate PIN for test save/download operations
+  storage.set('bearly-chat-pin', JSON.stringify({
+    version: 1,
+    salt: '000102030405060708090a0b0c0d0e0f1011',
+    hash: '6bbd27aa26ad70ab1d3aa5228a45c382036b72252bfebb52ced65e2cb267436d'
+  }));
+    const localStorage = {
     getItem(key) { if (options.storageError) throw new Error('Storage unavailable'); return storage.get(key) ?? (key === 'bearly-chat-settings' && !storage.has('toddle-cation-settings') && !options.defaultSettings ? JSON.stringify({ saveLocation: options.locationOff !== true, doNotSave: false }) : null); },
     setItem(key, value) { if (options.storageError) throw new Error('Storage unavailable'); storage.set(key, value); },
     removeItem(key) { if (options.storageError) throw new Error('Storage unavailable'); storage.delete(key); }
@@ -84,9 +109,40 @@ function createApp(options = {}) {
   if (!options.noGeolocation) navigator.geolocation = {
     getCurrentPosition(success, failure, settings) { request = { success, failure, settings }; }
   };
+  const nodeCrypto = require('node:crypto');
+  const realWebCrypto = nodeCrypto.webcrypto;
+    
+  // Mock crypto.subtle.deriveBits for instant test PIN verification
+  const precomputedHashes = new Map([
+    ['000102030405060708090a0b0c0d0e0f1011', '6bbd27aa26ad70ab1d3aa5228a45c382036b72252bfebb52ced65e2cb267436d']
+  ]);
+    
+  const mockCrypto = {
+    getRandomValues: (array) => realWebCrypto.getRandomValues(array),
+    subtle: {
+      deriveBits: async (algo, key, length) => {
+        if (algo.name !== 'PBKDF2') {
+          return realWebCrypto.subtle.deriveBits(algo, key, length);
+        }
+        const salt = algo.salt;
+        let saltStr;
+        if (ArrayBuffer.isView(salt)) {
+          saltStr = Array.from(salt, byte => byte.toString(16).padStart(2, '0')).join('');
+        } else if (typeof salt === 'string') {
+          saltStr = salt;
+        }
+        const precomputed = precomputedHashes.get(saltStr);
+        if (precomputed) {
+          return new Uint8Array(precomputed.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        }
+        return realWebCrypto.subtle.deriveBits(algo, key, length);
+      }
+    }
+  };
+    
   const window = {
     isSecureContext: options.secure !== false,
-    crypto: require('node:crypto').webcrypto,
+    crypto: mockCrypto,
     matchMedia() { return { matches: !!options.standalone }; },
     addEventListener(name, callback) { handlers[name] = callback; },
     location: { reload() { if (options.onReload) options.onReload(); } },
@@ -94,7 +150,7 @@ function createApp(options = {}) {
       openedPages.push({ url, target });
       return options.popupBlocked ? null : {};
     },
-    scrollTo() {}, close() {}, confirm() { return true; }
+    scrollTo() {}, close() {}, confirm() { return true; }, __isTest__: true
   };
   if (options.onPrint) window.print = options.onPrint;
   if (options.showDirectoryPicker) window.showDirectoryPicker = options.showDirectoryPicker;
@@ -208,6 +264,14 @@ function createApp(options = {}) {
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+// Wait for async PIN submission to complete
+async function flushPin(app) {
+  for (let i = 0; i < 10; i++) {
+    await flush();
+    if (!app.getPinSubmitInProgress()) break;
+  }
+}
+
 function select(app) {
   chooseFeeling(app);
   chooseColor(app);
@@ -284,7 +348,8 @@ test('demo navigation leaves an unfinished check-in intact and does not request 
   app.elements.get('close-help').click();
   assert.equal(app.elements.get('notes-screen').hidden, false);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].feeling, 'Happy');
@@ -443,7 +508,8 @@ test('uses a female device voice even when a male preference was previously save
   chooseFeeling(app);
   chooseColor(app);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.utterances.at(-1).text, 'Thank you!');
@@ -629,7 +695,8 @@ test('feeling confirmation shows and speaks the chosen emoji before continuing',
   assert.equal(app.feeling.getAttribute('aria-pressed'), 'false');
   chooseColor(app);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].feeling, 'Sad');
@@ -671,7 +738,8 @@ test('up to three distinct confirmed feelings are saved and exported together', 
   assert.equal(app.madFeeling.getAttribute('aria-pressed'), 'true');
   chooseColor(app);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].feeling, 'Happy, Sad, Mad');
@@ -729,7 +797,8 @@ test('choosing no after the second feeling continues and saves both', async () =
   assert.equal(app.elements.get('colors-screen').hidden, false);
   chooseColor(app);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].feeling, 'Happy, Sad');
@@ -754,7 +823,8 @@ test('can stop adding feelings and replace selections when returning from colors
   assert.equal(app.elements.get('colors-screen').hidden, false);
   chooseColor(app);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].feeling, 'Sad');
@@ -782,7 +852,8 @@ test('color confirmation shows and speaks the color, then saves only the confirm
   assert.equal(app.elements.get('color-dialog').open, false);
   assert.equal(app.elements.get('notes-screen').hidden, false);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].color, 'Red');
@@ -801,7 +872,8 @@ test('dismissing a new color choice stays on colors and allows another selection
   assert.equal(app.elements.get('colors-screen').hidden, false);
   chooseColor(app);
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].color, 'Blue');
@@ -836,7 +908,8 @@ test('Enter on the notes page continues to the save confirmation with the notes'
   assert.equal(prevented, true);
   assert.equal(app.elements.get('location-dialog').open, true);
   assert.equal(app.records.length, 0);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].notes, 'Keyboard note');
@@ -862,7 +935,8 @@ test('skipping notes continues to save with an empty notes field', async () => {
   app.elements.get('owner-notes').value = 'Do not include this note.';
   app.elements.get('skip-notes').click();
   assert.equal(app.elements.get('location-dialog').open, true);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records[0].notes, '');
@@ -873,7 +947,8 @@ test('single check-in download contains all saved data and keeps it until explic
   app.records.push({ feeling: 'Earlier', color: 'Red' });
   app.elements.get('owner-notes').value = '="quoted", note';
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   await app.elements.get('download-check-in').click();
@@ -900,7 +975,8 @@ test('another check-in resets the form without removing the saved check-in', asy
   chooseColor(app);
   app.elements.get('owner-notes').value = 'First check-in note';
   app.elements.get('continue-to-save').click();
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
 
@@ -921,7 +997,8 @@ test('another check-in resets the form without removing the saved check-in', asy
 test('check-in download leaves the location link blank when coordinates are unavailable', async () => {
   const app = createApp();
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success({ coords: { latitude: NaN, longitude: undefined, accuracy: 10 } });
   await flush();
   await app.elements.get('download-check-in').click();
@@ -933,7 +1010,8 @@ test('an unverified download remains queued and saved across app launches until 
   const records = [];
   const app = createApp({ records });
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   await app.elements.get('download-check-in').click();
@@ -957,7 +1035,8 @@ test('an unverified download remains queued and saved across app launches until 
 test('download failure leaves the check-in saved and reports an error', async () => {
   const app = createApp({ downloadError: true });
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   await app.elements.get('download-check-in').click();
@@ -971,7 +1050,8 @@ test('clearing downloaded data removes only the downloaded check-in', async () =
   const app = createApp();
   app.records.push({ feeling: 'Earlier', color: 'Red' });
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   await app.elements.get('download-check-in').click();
@@ -985,7 +1065,8 @@ test('clearing downloaded data removes only the downloaded check-in', async () =
 test('clearing an export does not delete check-ins created after its snapshot', async () => {
   const app = createApp();
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   await app.elements.get('download-history').click();
@@ -1057,7 +1138,8 @@ test('exports all entries to a checkins folder in the selected directory', async
     return Promise.resolve(parent);
   } });
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   app.records.push({ feeling: 'Sad', color: 'Red', timestamp: '2026-01-02T03:04:05.000Z', timeZoneOffsetMinutes: 300, latitude: 1, longitude: 2, accuracyMeters: 3 });
@@ -1100,15 +1182,18 @@ test('a failed file write reports an error and keeps the local database', async 
 test('denied or unavailable location cannot save and allows retry', async () => {
   const app = createApp();
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().failure({ code: 1 });
   assert.match(app.elements.get('location-status').textContent, /denied/i);
   assert.equal(app.records.length, 0);
   assert.equal(app.elements.get('thanks').open, undefined);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().failure({ code: 3 });
   assert.match(app.elements.get('location-status').textContent, /could not get/i);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records.length, 1);
@@ -1459,7 +1544,8 @@ test('offers a waiting update, applies it on request, and keeps saved check-ins'
   };
   const app = createApp({ serviceWorker, onReload() { reloaded = true; } });
   select(app);
-  app.elements.get('save-check-in').click();
+    app.elements.get('save-check-in').click();
+  await flushPin(app);
   app.getRequest().success(position());
   await flush();
   assert.equal(app.records.length, 1);

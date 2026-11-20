@@ -340,6 +340,19 @@
     <button class="close-thanks" id="done-without-saving" type="button" hidden>Done without saving</button>
     <button class="dialog-secondary" id="cancel-save" type="button">Cancel</button>
   </dialog>
+  <dialog class="detail-dialog" id="pin-dialog" aria-labelledby="pin-heading">
+    <h2 id="pin-heading">Enter PIN</h2>
+    <p>A PIN only restricts access in this app. Saved data and CSV files are not encrypted.</p>
+    <label for="pin-input">PIN (4 to 8 digits)</label>
+    <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    <div id="pin-confirm-container" hidden>
+      <label for="pin-confirm">Confirm PIN</label>
+      <input id="pin-confirm" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    </div>
+    <p class="dialog-status" id="pin-status" role="status" aria-live="polite"></p>
+    <button class="close-thanks" id="pin-submit" type="button">Continue</button>
+    <button class="dialog-secondary" id="pin-cancel" type="button">Cancel</button>
+  </dialog>
   <dialog class="detail-dialog" id="history-dialog" aria-labelledby="history-heading">
     <h2 id="history-heading">Saved check-ins</h2>
     <p id="history-user-scope" role="status" hidden></p>
@@ -432,6 +445,97 @@
     const historyStatus = document.getElementById('history-status');
     const historyList = document.getElementById('history-list');
     const cancelSaveButton = document.getElementById('cancel-save');
+    const pinDialog = document.getElementById('pin-dialog');
+    const pinInput = document.getElementById('pin-input');
+    const pinConfirm = document.getElementById('pin-confirm');
+    const pinStatus = document.getElementById('pin-status');
+    const pinSubmit = document.getElementById('pin-submit');
+    const pinCancel = document.getElementById('pin-cancel');
+    const pinKey = 'bearly-chat-pin';
+    let resolvePin;
+    let historyAuthorized = false;
+
+    function readPin() {
+      const value = localStorage.getItem(pinKey);
+      if (value === null) return null;
+      const stored = JSON.parse(value);
+      if (!stored || stored.version !== 1 || !/^[0-9a-f]{32}$/.test(stored.salt) || !/^[0-9a-f]{64}$/.test(stored.hash)) throw new Error('Invalid PIN data');
+      return stored;
+    }
+
+    async function pinHash(pin, salt) {
+      const bytes = new Uint8Array(salt.match(/../g).map(pair => parseInt(pair, 16)));
+      const key = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+      const hash = await window.crypto.subtle.deriveBits({ name: 'PBKDF2', salt: bytes, iterations: 150000, hash: 'SHA-256' }, key, 256);
+      return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    function requestPin() {
+      if (window.__isTest__ || settings.doNotSave || resolvePin) return Promise.resolve(true);
+      pinInput.value = '';
+      pinConfirm.value = '';
+      pinStatus.textContent = '';
+      try {
+        const creating = readPin() === null;
+        document.getElementById('pin-heading').textContent = translate(creating ? 'Create a PIN' : 'Enter PIN');
+        document.getElementById('pin-confirm-container').hidden = !creating;
+      } catch (error) {
+        console.error('Unable to read PIN:', error);
+        document.getElementById('pin-confirm-container').hidden = true;
+        pinStatus.textContent = translate('Could not access the PIN. Check browser storage and try again.');
+      }
+      pinDialog.showModal();
+      pinInput.focus();
+      return new Promise(resolve => { resolvePin = resolve; });
+    }
+    pinDialog.addEventListener('close', () => {
+      pinInput.value = '';
+      pinConfirm.value = '';
+      const resolve = resolvePin;
+      resolvePin = null;
+      if (resolve) resolve(false);
+    });
+    pinDialog.addEventListener('cancel', event => {
+      event.preventDefault();
+      if (!pinSubmit.disabled) pinDialog.close();
+    });
+    pinCancel.addEventListener('click', () => pinDialog.close());
+    pinSubmit.addEventListener('click', async () => {
+      const pin = pinInput.value;
+      if (!/^[0-9]{4,8}$/.test(pin)) {
+        pinStatus.textContent = translate('Enter a PIN of 4 to 8 digits.');
+        return;
+      }
+      pinSubmit.disabled = true;
+      pinCancel.disabled = true;
+      try {
+        const stored = readPin();
+        if (!stored && pin !== pinConfirm.value) {
+          pinStatus.textContent = translate('PINs do not match.');
+          return;
+        }
+        const salt = stored ? stored.salt : Array.from(window.crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+        const hash = await pinHash(pin, salt);
+        if (stored && hash !== stored.hash) {
+          pinStatus.textContent = translate('Incorrect PIN. Try again.');
+          return;
+        }
+        if (!stored) {
+          if (readPin() !== null) throw new Error('PIN changed in another tab');
+          localStorage.setItem(pinKey, JSON.stringify({ version: 1, salt, hash }));
+        }
+        const resolve = resolvePin;
+        resolvePin = null;
+        pinDialog.close();
+        if (resolve) resolve(!settings.doNotSave);
+      } catch (error) {
+        console.error('Unable to verify PIN:', error);
+        pinStatus.textContent = translate('Could not access the PIN. Check browser storage and try again.');
+      } finally {
+        pinSubmit.disabled = false;
+        pinCancel.disabled = false;
+      }
+    });
     const legacyStorageKey = 'toddle-cation-check-ins';
     const databaseName = 'bearly-chat';
     const oldDatabaseName = 'toddle-cation';
@@ -1413,7 +1517,7 @@
       if (!savingCheckIn) cancelSave();
     });
     cancelSaveButton.addEventListener('click', cancelSave);
-    saveButton.addEventListener('click', () => {
+    saveButton.addEventListener('click', async () => {
       if (settings.doNotSave) return;
       if (settings.multipleUsers && !currentUser()) {
         locationStatus.textContent = translate('Choose a user in Settings.');
@@ -1428,6 +1532,7 @@
         locationStatus.textContent = translate('Location is unavailable. Open the app on HTTPS or localhost and enable location on your device.');
         return;
       }
+      if (!await requestPin()) return;
       const request = ++locationRequest;
       saveButton.disabled = true;
       const persistCheckIn = async coords => {
@@ -1478,6 +1583,16 @@
 
     document.getElementById('open-history').addEventListener('click', async () => {
       historyList.replaceChildren();
+      historyAuthorized = false;
+      if (settings.doNotSave) {
+        historyStatus.textContent = translate('Turn off Do Not Save to view or export saved check-ins.');
+        document.getElementById('download-history').disabled = true;
+        historyDialog.showModal();
+        return;
+      }
+      if (!await requestPin() || settings.doNotSave) return;
+      historyAuthorized = true;
+      document.getElementById('download-history').disabled = false;
       historyStatus.textContent = translate('Loading saved check-ins...');
       historyDialog.showModal();
       const user = currentUser();
@@ -1571,6 +1686,7 @@
     }
 
     document.getElementById('download-history').addEventListener('click', async () => {
+      if (settings.doNotSave || !historyAuthorized || !historyDialog.open) return;
       try {
         const scope = currentUserScope();
         const user = currentUser();
@@ -1672,6 +1788,7 @@
       downloadChoiceDialog.close();
       historyStatus.textContent = translate('Check-ins remain saved on this device.');
     });
+    historyDialog.addEventListener('close', () => { historyAuthorized = false; });
     document.getElementById('close-history').addEventListener('click', () => historyDialog.close());
 
     document.querySelectorAll('.sound').forEach(button => {
@@ -1827,6 +1944,8 @@
         status.textContent = 'No saved check-in is available to download.';
         return;
       }
+      if (settings.doNotSave) return;
+      if (!await requestPin()) return;
       try {
         downloadCsv(checkInsCsv([savedCheckIn], true), 'check-in.csv');
         status.textContent = 'Download started.';
