@@ -4,7 +4,7 @@ A simple check-in for toddlers to pick up to three feelings and a color that mat
 
 Feeling choices appear as colorful segments of a friendly caterpillar, with a layout that adapts to smaller screens.
 
-Choose the question mark to enter a custom feeling name. You can add multiple different custom feelings, up to the same three-feeling limit.
+Choose the question mark to enter a custom feeling name. You can add multiple different custom feelings, up to the same three-feeling limit. The confirmation speaks the entered text using the selected language's device voice when available; the text is not automatically translated.
 
 Serve the app over HTTPS or localhost to use optional location, installation and offline support. To install it on a device, publish all app files (including the `icons` folder) together on an HTTPS web host. No account is required.
 

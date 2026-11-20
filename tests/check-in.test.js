@@ -871,6 +871,28 @@ test('custom feeling entry validates duplicates and can be cancelled or declined
   assert.equal(app.elements.get('custom-feeling-dialog').open, true);
 });
 
+test('custom feeling confirmation speaks the entered text in each selected language', () => {
+  const examples = [
+    ['en', 'en-US', 'Hopeful'], ['es', 'es-ES', 'Esperanzado'],
+    ['fr', 'fr-FR', 'Rassuré'], ['de', 'de-DE', 'Hoffnungsvoll'],
+    ['pt', 'pt-BR', 'Esperançoso'], ['ru', 'ru-RU', 'Надежда'],
+    ['zh', 'zh-CN', '安心'], ['ja', 'ja-JP', '安心'], ['ko', 'ko-KR', '편안해요']
+  ];
+  const voices = examples.map(([, lang]) => ({ name: `Voice ${lang}`, lang }));
+  const app = createApp({ allFeelings: true, speech: true, voices });
+  for (const [language, locale, text] of examples) {
+    app.elements.get('setting-language').events.change({ target: { value: language } });
+    app.elements.get('custom-feeling-choice').click();
+    app.elements.get('custom-feeling-input').value = text;
+    app.elements.get('custom-feeling-next').click();
+    assert.equal(app.elements.get('feeling-confirm-heading').textContent, text);
+    assert.equal(app.utterances.at(-1).text, text);
+    assert.equal(app.utterances.at(-1).lang, locale);
+    assert.equal(app.utterances.at(-1).voice.lang, locale);
+    app.elements.get('decline-feeling').click();
+  }
+});
+
 test('returning to feelings preserves custom choices until a replacement is confirmed', () => {
   const app = createApp({ allFeelings: true });
   const choice = app.elements.get('custom-feeling-choice');

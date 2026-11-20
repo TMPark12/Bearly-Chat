@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bearly-chat-v44';
+const CACHE_NAME = 'bearly-chat-v45';
 const APP_FILES = ['./', './index.html', './location-setup.html', './privacy.html', './terms.html', './style.css', './display-settings.js', './translations.js', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', event => {
