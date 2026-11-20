@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f6f7f2">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,7 +24,7 @@
         <button class="help-button" id="open-settings" type="button">Settings</button>
         <button class="help-button" id="open-help" type="button"><span aria-hidden="true">?</span> Help</button>
         <button class="install-button" id="install-button" type="button" aria-label="Install Bearly Chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"/></svg><span>Install app</span></button>
-        <div class="step"><span id="step-text">1 of 3</span><span class="step-dots" aria-hidden="true"><span id="dot-one" class="active"></span><span id="dot-two"></span><span id="dot-three"></span></span></div>
+        <div class="step"><span id="step-text">1 of 2</span><span class="step-dots" aria-hidden="true"><span id="dot-one" class="active"></span><span id="dot-two"></span><span id="dot-three" hidden></span></span></div>
       </div>
     </header>
     <aside class="update-notice" id="update-notice" aria-label="App update" hidden>
@@ -44,14 +46,16 @@
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😴</span><span class="feeling-label">Tired</span></button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😤</span><span class="feeling-label">Frustrated</span></button>
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😵‍💫</span><span class="feeling-label">Overwhelmed</span></button>
-          <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">🙈</span><span class="feeling-label">Shy</span></button>
+          <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😳</span><span class="feeling-label">Shy</span></button>
+          <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">🤪</span><span class="feeling-label">Hyper</span></button>
         </div>
         <div class="heading">
           <h1 id="feelings-heading" tabindex="-1">How do you feel?</h1>
           <p class="subtitle">Pick up to three faces that feel like you.</p>
           <p class="subtitle" id="selected-feelings" role="status" aria-live="polite"></p>
+          <p class="subtitle" id="current-user-status" role="status" aria-live="polite" hidden></p>
           <button class="dialog-secondary" id="feelings-done" type="button" hidden>Continue with these feelings</button>
-          <p class="privacy-notice" id="privacy-notice">With location permission, your check-in, notes, location and browser/device information will be saved on this device.</p>
+          <p class="privacy-notice" id="privacy-notice">Do Not Save is on. Your check-in and notes will not be saved, and location will not be requested.</p>
           <button class="sound" type="button" data-speech="How do you feel?" aria-label="Listen to the question: How do you feel?">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/></svg> Hear the question
           </button>
@@ -66,13 +70,13 @@
           <div class="question-circle"><h1 id="colors-heading" tabindex="-1">What color matches how you feel?</h1></div>
           <div class="colors">
           <button class="color-choice" data-color="red" type="button" aria-label="Red"><span class="swatch"></span><span class="color-name">Red</span></button>
-          <button class="color-choice" data-color="blue" type="button" aria-label="Blue"><span class="swatch"></span><span class="color-name">Blue</span></button>
+          <button class="color-choice" data-color="orange" type="button" aria-label="Orange"><span class="swatch"></span><span class="color-name">Orange</span></button>
           <button class="color-choice" data-color="yellow" type="button" aria-label="Yellow"><span class="swatch"></span><span class="color-name">Yellow</span></button>
+          <button class="color-choice" data-color="green" type="button" aria-label="Green"><span class="swatch"></span><span class="color-name">Green</span></button>
+          <button class="color-choice" data-color="blue" type="button" aria-label="Blue"><span class="swatch"></span><span class="color-name">Blue</span></button>
+          <button class="color-choice" data-color="purple" type="button" aria-label="Purple"><span class="swatch"></span><span class="color-name">Purple</span></button>
           <button class="color-choice" data-color="black" type="button" aria-label="Black"><span class="swatch"></span><span class="color-name">Black</span></button>
           <button class="color-choice" data-color="white" type="button" aria-label="White"><span class="swatch"></span><span class="color-name">White</span></button>
-          <button class="color-choice" data-color="orange" type="button" aria-label="Orange"><span class="swatch"></span><span class="color-name">Orange</span></button>
-          <button class="color-choice" data-color="green" type="button" aria-label="Green"><span class="swatch"></span><span class="color-name">Green</span></button>
-          <button class="color-choice" data-color="purple" type="button" aria-label="Purple"><span class="swatch"></span><span class="color-name">Purple</span></button>
           </div>
         </div>
         <div class="color-prompt">
@@ -86,7 +90,7 @@
       <section id="notes-screen" aria-labelledby="notes-heading" hidden>
         <div class="notes-panel">
           <h1 id="notes-heading" tabindex="-1">Anything else to note?</h1>
-          <p class="subtitle" id="notes-description">Device owner notes are saved with this check-in and included in the CSV export.</p>
+          <p class="subtitle" id="notes-description">Notes are not stored while Do Not Save is enabled.</p>
           <label for="owner-notes">Device owner notes (optional)</label>
           <textarea id="owner-notes" maxlength="1000" rows="6" aria-describedby="notes-keyboard-hint"></textarea>
           <p class="notes-keyboard-hint" id="notes-keyboard-hint">Press Enter to continue to save, or Shift+Enter for a new line.</p>
@@ -103,6 +107,8 @@
         <div class="settings-panel">
           <h1 id="settings-heading" tabindex="-1">Settings</h1>
           <p class="subtitle">Settings are saved on this device.</p>
+          <button class="dialog-secondary" id="open-settings-demo" type="button">Settings demo</button>
+          <button class="dialog-secondary" id="print-settings-guide" type="button">Print or save Settings guide as PDF</button>
           <fieldset>
             <legend>Voice</legend>
             <label class="setting-row"><input type="checkbox" id="setting-voice"> Read questions aloud</label>
@@ -133,8 +139,19 @@
           <fieldset>
             <legend>Check-in</legend>
             <label class="setting-row"><input type="checkbox" id="setting-randomize"> Randomize feeling and color choices</label>
-            <label class="setting-row"><input type="checkbox" id="setting-do-not-save"> Do Not Save</label>
-            <p>When enabled, saving and location are turned off. You can finish without saving.</p>
+            <label class="setting-row"><input type="checkbox" id="setting-do-not-save" checked> Do Not Save</label>
+            <p>On by default. New check-ins are not saved and location is not requested. Previously saved check-ins remain until cleared.</p>
+            <label class="setting-row"><input type="checkbox" id="setting-save-location"> Save location with check-ins</label>
+            <p>Off by default. New check-ins saved while off have no location. Older check-ins may still contain location.</p>
+            <label class="setting-row"><input type="checkbox" id="setting-multiple-users"> Save for multiple users</label>
+            <div id="user-settings" hidden>
+              <label class="setting-row" for="setting-current-user">Current user</label>
+              <select id="setting-current-user"></select>
+              <button class="dialog-secondary" id="add-user" type="button">Add user</button>
+              <p>User names are saved in this browser, even when Do Not Save is on. Profiles are not protected by a password.</p>
+              <p>Existing check-ins remain separate. Turn off multiple users to view them.</p>
+              <p>User folders are created when exporting where supported; otherwise a named CSV is downloaded.</p>
+            </div>
           </fieldset>
           <fieldset>
             <legend>Display</legend>
@@ -148,14 +165,23 @@
             <button class="dialog-secondary" id="settings-clear" type="button">Clear saved check-ins</button>
             <button class="dialog-secondary" id="settings-demo" type="button">Show demo invitation again</button>
             <button class="dialog-secondary" id="settings-help" type="button">Help and demo</button>
-            <p>A backup from an earlier version may remain in browser storage after clearing check-ins. Clear this site's browser data to remove it.</p>
+            <p>Downloaded CSV files must be deleted separately.</p>
             <p class="dialog-status" id="settings-status" role="status" aria-live="polite"></p>
+          </fieldset>
+          <fieldset>
+            <legend>Privacy</legend>
+            <p>Check-ins stay on this device. Saving and location are off by default.</p>
+            <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Read the privacy policy</a>
+          </fieldset>
+          <fieldset>
+            <legend>Terms of Use and Disclaimer</legend>
+            <a href="./terms.html" target="_blank" rel="noopener noreferrer">Read the terms of use and disclaimer</a>
           </fieldset>
           <button class="close-thanks" id="close-settings" type="button">Done</button>
         </div>
       </section>
     </main>
-    <footer><button class="history-button" id="open-history" type="button">Saved check-ins</button><br>Made for little feelings and big conversations.</footer>
+    <footer><button class="history-button" id="open-history" type="button">Saved check-ins</button><br><a href="./privacy.html">Privacy notice</a><br>Made for little feelings and big conversations.</footer>
   </div>
   <dialog class="detail-dialog" id="startup-update-dialog" aria-labelledby="startup-update-heading" aria-describedby="startup-update-status">
     <h2 id="startup-update-heading">Checking for updates</h2>
@@ -168,6 +194,14 @@
     <p>Is this how you feel?</p>
     <button class="close-thanks" id="confirm-feeling" type="button">Yes</button>
     <button class="dialog-secondary" id="decline-feeling" type="button" autofocus>No</button>
+  </dialog>
+  <dialog class="detail-dialog" id="add-user-dialog" aria-labelledby="add-user-heading">
+    <h2 id="add-user-heading">What should we call this user?</h2>
+    <label for="new-user-name">User name</label>
+    <input id="new-user-name" type="text" maxlength="40" autocomplete="off">
+    <p class="dialog-status" id="new-user-status" role="status" aria-live="polite"></p>
+    <button class="close-thanks" id="save-user" type="button">Add user</button>
+    <button class="dialog-secondary" id="cancel-user" type="button">Cancel</button>
   </dialog>
   <dialog class="detail-dialog" id="add-feeling-dialog" aria-labelledby="add-feeling-heading">
     <h2 id="add-feeling-heading">Would you like to add another feeling?</h2>
@@ -218,16 +252,18 @@
         <h3 id="demo-step-heading-3" tabindex="-1">3. Add notes or skip</h3>
         <p>The device owner may add optional notes, or choose <strong>Skip notes and continue</strong>. Choose <strong>Back to colors</strong> to change the color.</p>
         <p>Notes are included in saved check-ins and CSV exports.</p>
+        <p>When Do Not Save is on, the notes page is skipped.</p>
       </section>
       <section class="demo-step" id="demo-step-4" aria-labelledby="demo-step-heading-4" hidden>
-        <h3 id="demo-step-heading-4" tabindex="-1">4. Allow location to save</h3>
-        <p>An adult can choose <strong>Allow location and save</strong> and approve the browser's location request. Location is required; if permission is denied or location is unavailable, the check-in is not saved. Choose <strong>Cancel</strong> to return without saving.</p>
-        <p>The feelings, color, notes, date and time, location, and browser/device information are stored in this browser on this device.</p>
+        <h3 id="demo-step-heading-4" tabindex="-1">4. Save the check-in</h3>
+        <p>To save, turn off Do Not Save in Settings. Location is optional. Choose Cancel to return without saving.</p>
+        <p>When Do Not Save is on, choose Done without saving. When it is off, choose Save check-in. If location is enabled, permission and a location fix are required.</p>
+        <p>If multiple users are enabled, select a user in Settings before saving.</p>
       </section>
       <section class="demo-step" id="demo-step-5" aria-labelledby="demo-step-heading-5" hidden>
         <h3 id="demo-step-heading-5" tabindex="-1">5. Download or review</h3>
-        <p>After saving, <strong>Save and Download Check-In</strong> downloads a CSV with the saved check-in, including location and device information. Its approximate location link contains the recorded coordinates; opening the link shares those coordinates with Google Maps. <strong>Close</strong> keeps the saved check-in on the device without downloading it.</p>
-        <p>Choose <strong>Saved check-ins</strong> to review or export records. After downloading, verify the file was saved before choosing whether to clear the downloaded records. Exports contain location and device information, so keep them private. Records do not sync between devices or browsers.</p>
+        <p>Only saved check-ins can be downloaded. Opening a saved map link shares its coordinates with Google Maps.</p>
+        <p>Use Saved check-ins to review or export records. Verify downloads before clearing records. Exports can contain location and device information; keep them private. Records do not sync.</p>
       </section>
     </div>
     <p class="dialog-status" id="demo-print-status" role="status" aria-live="polite"></p>
@@ -238,19 +274,66 @@
       <button class="dialog-secondary" id="demo-close" type="button">Close demo</button>
     </div>
   </dialog>
+  <dialog class="detail-dialog demo-dialog" id="settings-demo-dialog" aria-labelledby="settings-demo-heading">
+    <h2 id="settings-demo-heading">Settings demo</h2>
+    <p class="demo-intro">This guide explains each Settings area without changing your settings.</p>
+    <p class="demo-intro">For a copy to keep, choose “Save as PDF” in your device's print options, if available.</p>
+    <p class="demo-progress" id="settings-demo-progress" aria-live="polite"></p>
+    <div class="demo-steps">
+      <section class="demo-step" id="settings-demo-step-1" aria-labelledby="settings-demo-step-heading-1">
+        <h3 id="settings-demo-step-heading-1" tabindex="-1">Voice</h3>
+        <p>Turn Read questions aloud on or off. Adjust speech rate and volume with the sliders, choose a voice and language, or check Mute speech. Use Hear voice to preview the voice.</p>
+        <p>Voices depend on your device and may be unavailable or require a connection.</p>
+      </section>
+      <section class="demo-step" id="settings-demo-step-2" aria-labelledby="settings-demo-step-heading-2" hidden>
+        <h3 id="settings-demo-step-heading-2" tabindex="-1">Check-in</h3>
+        <p>Check Randomize to shuffle choices. Do Not Save is on by default: new check-ins are not saved, the notes page is skipped, and location is not requested. Uncheck it to save check-ins.</p>
+        <p>Save location with check-ins is off by default. Check it to request location when saving; permission and a location fix are then required.</p>
+      </section>
+      <section class="demo-step" id="settings-demo-step-3" aria-labelledby="settings-demo-step-heading-3" hidden>
+        <h3 id="settings-demo-step-heading-3" tabindex="-1">Save for multiple users</h3>
+        <p>Check Save for multiple users to enable profiles. Choose Add user and enter a non-identifying nickname, then select the current user before saving or viewing their records. Turn it off to view older unassigned records.</p>
+        <p>User names stay on this device even when Do Not Save is on; profiles are not password-protected. Export creates a user folder where supported, or downloads a named CSV.</p>
+      </section>
+      <section class="demo-step" id="settings-demo-step-4" aria-labelledby="settings-demo-step-heading-4" hidden>
+        <h3 id="settings-demo-step-heading-4" tabindex="-1">Display</h3>
+        <p>Check Larger text, High-contrast mode, or Reduce motion to make the app more comfortable to use.</p>
+      </section>
+      <section class="demo-step" id="settings-demo-step-5" aria-labelledby="settings-demo-step-heading-5" hidden>
+        <h3 id="settings-demo-step-heading-5" tabindex="-1">Saved data</h3>
+        <p>Choose Export check-ins (CSV) to review and export saved records. Verify the exported file before clearing data. Clear saved check-ins removes saved records for all users, including the old backup.</p>
+        <p>Delete downloaded files separately. Show demo invitation again restores the invitation for the next installed launch; Help and demo opens the main walkthrough.</p>
+      </section>
+      <section class="demo-step" id="settings-demo-step-6" aria-labelledby="settings-demo-step-heading-6" hidden>
+        <h3 id="settings-demo-step-heading-6" tabindex="-1">Privacy</h3>
+        <p>Choose Read the privacy policy to learn what is stored, how to delete it, and how to keep exports private.</p>
+      </section>
+      <section class="demo-step" id="settings-demo-step-7" aria-labelledby="settings-demo-step-heading-7" hidden>
+        <h3 id="settings-demo-step-heading-7" tabindex="-1">Terms of Use and Disclaimer</h3>
+        <p>Choose Read the terms of use and disclaimer for guidance on supervised use, responsibilities, and the app's limitations.</p>
+      </section>
+    </div>
+    <p class="dialog-status" id="settings-demo-print-status" role="status" aria-live="polite"></p>
+    <div class="demo-controls">
+      <button class="dialog-secondary" id="settings-demo-back" type="button">Back</button>
+      <button class="close-thanks" id="settings-demo-next" type="button">Next</button>
+      <button class="dialog-secondary" id="settings-demo-print" type="button">Print or save as PDF</button>
+      <button class="dialog-secondary" id="settings-demo-close" type="button">Close demo</button>
+    </div>
+  </dialog>
   <dialog class="detail-dialog" id="location-dialog" aria-labelledby="location-heading" aria-describedby="location-description">
     <h2 id="location-heading">Save this check-in?</h2>
-    <p id="location-description">An adult can allow location to save the feelings, color, notes, local date and time, device location, and browser/device information on this device. Location is required to save.</p>
+    <p id="location-description">An adult can save the feelings, color, notes, local date and time, and browser/device information on this device. Location is not requested or saved.</p>
     <p class="dialog-status" id="location-status" role="status" aria-live="polite"></p>
-    <button class="close-thanks" id="save-check-in" type="button">Allow location and save</button>
+    <button class="close-thanks" id="save-check-in" type="button">Save check-in</button>
     <button class="close-thanks" id="done-without-saving" type="button" hidden>Done without saving</button>
     <button class="dialog-secondary" id="cancel-save" type="button">Cancel</button>
   </dialog>
   <dialog class="detail-dialog" id="history-dialog" aria-labelledby="history-heading">
     <h2 id="history-heading">Saved check-ins</h2>
-    <p>These are stored in this browser on this device, including notes, location and browser/device information. Check-ins waiting to be downloaded stay queued through app updates.</p>
-    <p>Export creates or replaces checkins/checkins.csv in a folder you choose when supported. Otherwise, checkins.csv downloads to your browser's download location.</p>
-    <p>A backup from an earlier version may remain in browser storage after clearing check-ins. Clear this site's browser data to remove it.</p>
+    <p id="history-user-scope" role="status" hidden></p>
+    <p>These are stored in this browser on this device, including notes, browser/device information, and location if saved. Check-ins waiting to be downloaded stay queued through app updates.</p>
+    <p>Export creates a CSV in a folder you choose when supported. Otherwise, it downloads to your browser's download location.</p>
     <p class="dialog-status" id="history-status" role="status" aria-live="polite"></p>
     <ol class="history-list" id="history-list"></ol>
     <button class="dialog-secondary" id="download-history" type="button">Export checkins.csv</button>
@@ -261,7 +344,7 @@
     <h2 id="thanks-heading"><button class="thank-message" id="thank-message" type="button" aria-label="Thank You, hear again">Thank You</button></h2>
     <p id="thank-saved-status">Your check-in has been saved on this device.</p>
     <p>Would you like to do another check-in?</p>
-    <p>The check-in download includes location and device information and an approximate Google Maps link containing your recorded coordinates. Opening it shares those coordinates with Google.</p>
+    <p>The check-in download includes device information and, if location was saved, an approximate Google Maps link containing your recorded coordinates. Opening it shares those coordinates with Google.</p>
     <p class="dialog-status" id="download-check-in-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="download-check-in" type="button">Save and Download Check-In</button>
     <button class="dialog-secondary" id="another-check-in" type="button">Do another check-in</button>
@@ -270,7 +353,7 @@
   <dialog class="detail-dialog" id="download-choice-dialog" aria-labelledby="download-choice-heading">
     <h2 id="download-choice-heading">You are appreciated</h2>
     <p>Verify that your downloaded file was saved before clearing data. Browser downloads may be cancelled or fail after they start.</p>
-    <p>A backup from an earlier version may remain in browser storage after clearing check-ins. Clear this site's browser data to remove it.</p>
+    <p>Downloaded CSV files must be deleted separately.</p>
     <p class="dialog-status" id="download-choice-status" role="status" aria-live="polite"></p>
     <button class="close-thanks" id="clear-downloaded-data" type="button">File saved - clear downloaded data</button>
     <button class="dialog-secondary" id="save-downloaded-data" type="button">File saved - keep data</button>
@@ -292,7 +375,7 @@
   </main>
   <script>
     const translations = window.BearlyChatTranslations || {};
-    let settings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: false };
+    let settings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: true, saveLocation: false, multipleUsers: false, currentUser: '' };
     function translate(message) {
       const localized = translations[message];
       return localized && localized[settings.language] || message;
@@ -307,7 +390,7 @@
           const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
           while (walker.nextNode()) {
             const node = walker.currentNode;
-            if (node.parentElement && ['SCRIPT', 'STYLE'].includes(node.parentElement.tagName)) continue;
+            if (node.parentElement && (['SCRIPT', 'STYLE'].includes(node.parentElement.tagName) || ['privacy-notice', 'notes-description', 'current-user-status'].includes(node.parentElement.id))) continue;
             const match = node.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/);
             if (match && match[2]) localizedTextNodes.push({ node, leading: match[1], source: match[2], trailing: match[3] });
           }
@@ -400,9 +483,9 @@
       demoDialog.showModal();
       document.body.classList.toggle('demo-open', true);
     }
-    function printDemo() {
+    function printDemo(statusId) {
       if (typeof window.print !== 'function') {
-        document.getElementById('demo-print-status').textContent = translate('Printing is unavailable in this browser.');
+        document.getElementById(statusId).textContent = translate('Printing is unavailable in this browser.');
         return;
       }
       window.print();
@@ -420,11 +503,11 @@
     demoInvitation.addEventListener('cancel', () => speak(translate('How do you feel?')));
     document.getElementById('help-print').addEventListener('click', () => {
       openDemo();
-      printDemo();
+      printDemo('demo-print-status');
     });
     demoBack.addEventListener('click', () => showDemoStep(demoStep - 1));
     demoNext.addEventListener('click', () => showDemoStep(demoStep + 1));
-    document.getElementById('demo-print').addEventListener('click', printDemo);
+    document.getElementById('demo-print').addEventListener('click', () => printDemo('demo-print-status'));
     document.getElementById('demo-close').addEventListener('click', () => demoDialog.close());
     demoDialog.addEventListener('close', () => {
       document.body.classList.toggle('demo-open', false);
@@ -435,6 +518,37 @@
         helpDialog.showModal();
       }
     });
+
+    const settingsDemoDialog = document.getElementById('settings-demo-dialog');
+    const settingsDemoSteps = [1, 2, 3, 4, 5, 6, 7].map(number => document.getElementById(`settings-demo-step-${number}`));
+    const settingsDemoBack = document.getElementById('settings-demo-back');
+    const settingsDemoNext = document.getElementById('settings-demo-next');
+    let settingsDemoStep = 0;
+    function showSettingsDemoStep(step) {
+      settingsDemoStep = step;
+      settingsDemoSteps.forEach((section, index) => { section.hidden = index !== step; });
+      document.getElementById('settings-demo-progress').textContent = translate('Step {step} of {total}')
+        .replace('{step}', step + 1).replace('{total}', settingsDemoSteps.length);
+      settingsDemoBack.disabled = step === 0;
+      settingsDemoNext.hidden = step === settingsDemoSteps.length - 1;
+      if (settingsDemoDialog.open) document.getElementById(`settings-demo-step-heading-${step + 1}`).focus();
+    }
+    function openSettingsDemo() {
+      showSettingsDemoStep(0);
+      document.getElementById('settings-demo-print-status').textContent = '';
+      settingsDemoDialog.showModal();
+      document.body.classList.toggle('settings-demo-open', true);
+    }
+    document.getElementById('open-settings-demo').addEventListener('click', openSettingsDemo);
+    document.getElementById('print-settings-guide').addEventListener('click', () => {
+      openSettingsDemo();
+      printDemo('settings-demo-print-status');
+    });
+    settingsDemoBack.addEventListener('click', () => showSettingsDemoStep(settingsDemoStep - 1));
+    settingsDemoNext.addEventListener('click', () => showSettingsDemoStep(settingsDemoStep + 1));
+    document.getElementById('settings-demo-print').addEventListener('click', () => printDemo('settings-demo-print-status'));
+    document.getElementById('settings-demo-close').addEventListener('click', () => settingsDemoDialog.close());
+    settingsDemoDialog.addEventListener('close', () => document.body.classList.toggle('settings-demo-open', false));
 
     const isInstalled = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
     if (isInstalled) {
@@ -728,8 +842,12 @@
     const settingsScreen = document.getElementById('settings-screen');
     const settingsStatus = document.getElementById('settings-status');
     const settingsKey = 'bearly-chat-settings';
-    const defaultSettings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: false };
+    const defaultSettings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: true, saveLocation: false, multipleUsers: false, currentUser: '' };
+    const usersKey = 'bearly-chat-users';
+    let users = [];
+    let usersAvailable = true;
     let screenBeforeSettings = 1;
+    let currentStep = 1;
     try {
       migrateStorageKey(localStorage, 'toddle-cation-settings', settingsKey);
       const stored = JSON.parse(localStorage.getItem(settingsKey));
@@ -739,12 +857,56 @@
         if (!Object.prototype.hasOwnProperty.call(speechLocales, settings.language)) settings.language = defaultSettings.language;
         if (!Number.isFinite(settings.volume) || settings.volume < 0 || settings.volume > 1) settings.volume = defaultSettings.volume;
         if (!Number.isFinite(settings.rate) || settings.rate < 0.5 || settings.rate > 1.5) settings.rate = defaultSettings.rate;
-        ['voice', 'largeText', 'contrast', 'reduceMotion', 'muted', 'randomize', 'doNotSave'].forEach(key => {
+        ['voice', 'largeText', 'contrast', 'reduceMotion', 'muted', 'randomize', 'doNotSave', 'saveLocation', 'multipleUsers'].forEach(key => {
           if (typeof settings[key] !== 'boolean') settings[key] = defaultSettings[key];
         });
+        if (typeof settings.currentUser !== 'string') settings.currentUser = '';
       }
     } catch (error) {
       console.error('Unable to read settings:', error);
+    }
+    try {
+      const savedUsers = localStorage.getItem(usersKey);
+      if (savedUsers !== null) {
+        const parsed = JSON.parse(savedUsers);
+        if (!Array.isArray(parsed) || parsed.some(user => !user || typeof user.id !== 'string' || !/^[a-f0-9-]{36}$/.test(user.id) || typeof user.name !== 'string' || !user.name.trim() || user.name.length > 40) || new Set(parsed.map(user => user.id)).size !== parsed.length) {
+          throw new Error('Invalid saved users');
+        }
+        users = parsed;
+      }
+    } catch (error) {
+      usersAvailable = false;
+      console.error('Unable to read users:', error);
+      settingsStatus.textContent = translate('Could not read user profiles on this device.');
+    }
+    function currentUser() {
+      return settings.multipleUsers && usersAvailable ? users.find(user => user.id === settings.currentUser) : null;
+    }
+    function currentUserScope() {
+      return settings.multipleUsers ? currentUser()?.id : null;
+    }
+    function belongsToUser(checkIn, userId) {
+      return userId === null ? checkIn.userId == null : checkIn.userId === userId;
+    }
+    function profileStorageIssue() {
+      try {
+        const stored = localStorage.getItem(usersKey);
+        return JSON.stringify(stored === null ? [] : JSON.parse(stored)) === JSON.stringify(users)
+          ? '' : 'User profiles changed in another tab. Reload and try again.';
+      } catch (error) {
+        console.error('Unable to verify user profiles:', error);
+        return 'Could not read user profiles on this device.';
+      }
+    }
+    function userFolderName(user) {
+      const name = user.name.replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g, '_').replace(/[. ]+$/g, '') || 'user';
+      return `user-${user.id}-${name}`;
+    }
+    function showAddUser() {
+      document.getElementById('new-user-name').value = '';
+      document.getElementById('new-user-status').textContent = '';
+      document.getElementById('add-user-dialog').showModal();
+      document.getElementById('new-user-name').focus();
     }
     function applySettings() {
       document.documentElement.classList.toggle('large-text', settings.largeText);
@@ -763,21 +925,49 @@
       document.getElementById('setting-mute').checked = settings.muted;
       document.getElementById('setting-randomize').checked = settings.randomize;
       document.getElementById('setting-do-not-save').checked = settings.doNotSave;
+      document.getElementById('setting-save-location').checked = settings.saveLocation;
+      document.getElementById('setting-multiple-users').checked = settings.multipleUsers;
+      document.getElementById('setting-multiple-users').disabled = !usersAvailable;
+      document.getElementById('user-settings').hidden = !settings.multipleUsers;
+      const currentStatus = document.getElementById('current-user-status');
+      const user = currentUser();
+      currentStatus.hidden = !settings.multipleUsers;
+      currentStatus.textContent = user ? translate('Current user: {name}').replace('{name}', user.name) : translate('Choose a user in Settings.');
       document.getElementById('privacy-notice').textContent = translate(settings.doNotSave
         ? 'Do Not Save is on. Your check-in and notes will not be saved, and location will not be requested.'
-        : 'With location permission, your check-in, notes, location and browser/device information will be saved on this device.');
+        : settings.saveLocation
+          ? 'With location permission, your check-in, notes, location and browser/device information will be saved on this device.'
+          : 'Your check-in, notes and browser/device information will be saved on this device. Location is not requested or saved.');
       document.getElementById('notes-description').textContent = translate(settings.doNotSave
         ? 'Notes are not stored while Do Not Save is enabled.'
         : 'Device owner notes are saved with this check-in and included in the CSV export.');
       applyLanguage();
+      const userSelect = document.getElementById('setting-current-user');
+      userSelect.replaceChildren();
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = translate('Choose a user');
+      userSelect.appendChild(placeholder);
+      users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.id;
+        option.textContent = user.name;
+        userSelect.appendChild(option);
+      });
+      userSelect.value = user ? user.id : '';
+      userSelect.disabled = !usersAvailable;
+      document.getElementById('add-user').disabled = !usersAvailable;
+      updateStepIndicator();
     }
     function saveSettings() {
       try {
         localStorage.setItem(settingsKey, JSON.stringify(settings));
-        settingsStatus.textContent = '';
+        settingsStatus.textContent = usersAvailable ? '' : translate('Could not read user profiles on this device.');
+        return true;
       } catch (error) {
         console.error('Unable to save settings:', error);
         settingsStatus.textContent = translate('Could not save settings on this device. They will reset when you close the app.');
+        return false;
       }
     }
     applySettings();
@@ -826,6 +1016,62 @@
         saveSettings();
       });
     });
+    document.getElementById('setting-save-location').addEventListener('change', event => {
+      settings.saveLocation = event.target.checked;
+      applySettings();
+      saveSettings();
+    });
+    document.getElementById('setting-multiple-users').addEventListener('change', event => {
+      settings.multipleUsers = event.target.checked;
+      if (settings.multipleUsers) settings.currentUser = '';
+      applySettings();
+      saveSettings();
+      if (settings.multipleUsers && users.length === 0 && usersAvailable) showAddUser();
+    });
+    document.getElementById('setting-current-user').addEventListener('change', event => {
+      settings.currentUser = users.some(user => user.id === event.target.value) ? event.target.value : '';
+      applySettings();
+      saveSettings();
+    });
+    document.getElementById('add-user').addEventListener('click', showAddUser);
+    document.getElementById('cancel-user').addEventListener('click', () => document.getElementById('add-user-dialog').close());
+    function addUser() {
+      const name = document.getElementById('new-user-name').value.trim();
+      const status = document.getElementById('new-user-status');
+      if (!name || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) {
+        status.textContent = translate('Enter a user name of up to 40 characters.');
+        return;
+      }
+      if (users.some(user => user.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        status.textContent = translate('That user name is already in use.');
+        return;
+      }
+      try {
+        const issue = profileStorageIssue();
+        if (issue) {
+          status.textContent = translate(issue);
+          return;
+        }
+        const user = { id: window.crypto.randomUUID(), name };
+        const updated = [...users, user];
+        localStorage.setItem(usersKey, JSON.stringify(updated));
+        users = updated;
+        settings.currentUser = user.id;
+        applySettings();
+        saveSettings();
+        document.getElementById('add-user-dialog').close();
+      } catch (error) {
+        console.error('Unable to add user:', error);
+        status.textContent = translate('Could not add this user. Check browser storage and try again.');
+      }
+    }
+    document.getElementById('save-user').addEventListener('click', addUser);
+    document.getElementById('new-user-name').addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault();
+        addUser();
+      }
+    });
     document.getElementById('setting-rate').addEventListener('input', event => {
       settings.rate = Number(event.target.value);
       applySettings();
@@ -851,6 +1097,11 @@
     document.getElementById('close-settings').addEventListener('click', () => {
       settingsScreen.hidden = true;
       if (speechSupported) window.speechSynthesis.cancel();
+      if (screenBeforeSettings === 3 && settings.doNotSave) {
+        showScreen(2);
+        continueToSave(false);
+        return;
+      }
       const heading = [feelingsScreen, colorsScreen, notesScreen][screenBeforeSettings - 1];
       heading.hidden = false;
       document.getElementById(['feelings-heading', 'colors-heading', 'notes-heading'][screenBeforeSettings - 1]).focus();
@@ -858,14 +1109,19 @@
     document.getElementById('settings-export').addEventListener('click', () => document.getElementById('open-history').click());
     document.getElementById('settings-clear').addEventListener('click', async () => {
       if (!window.confirm('Clear all saved check-ins from this device? Export them first if you want a copy. This cannot be undone.')) return;
+      const button = document.getElementById('settings-clear');
+      button.disabled = true;
       try {
-        await useCheckInDatabase('readwrite', store => store.clear());
+        await clearStoredCheckIns();
         savedCheckIn = null;
         savedCheckInKey = undefined;
+        historyList.replaceChildren();
         settingsStatus.textContent = translate('All saved check-ins were cleared from this device.');
       } catch (error) {
         console.error('Unable to clear check-ins:', error);
         settingsStatus.textContent = translate('Could not clear saved check-ins. They are still saved on this device.');
+      } finally {
+        button.disabled = false;
       }
     });
     document.getElementById('settings-demo').addEventListener('click', () => {
@@ -880,15 +1136,24 @@
     });
     document.getElementById('settings-help').addEventListener('click', () => helpDialog.showModal());
 
+    function updateStepIndicator() {
+      const total = settings.doNotSave ? 2 : 3;
+      const step = Math.min(currentStep, total);
+      document.getElementById('step-text').textContent = translate('{step} of {total}')
+        .replace('{step}', step).replace('{total}', total);
+      document.getElementById('dot-one').classList.toggle('active', step === 1);
+      document.getElementById('dot-two').classList.toggle('active', step === 2);
+      document.getElementById('dot-three').classList.toggle('active', step === 3);
+      document.getElementById('dot-three').hidden = settings.doNotSave;
+    }
+
     function showScreen(step) {
       settingsScreen.hidden = true;
       feelingsScreen.hidden = step !== 1;
       colorsScreen.hidden = step !== 2;
       notesScreen.hidden = step !== 3;
-      document.getElementById('step-text').textContent = `${step} of 3`;
-      document.getElementById('dot-one').classList.toggle('active', step === 1);
-      document.getElementById('dot-two').classList.toggle('active', step === 2);
-      document.getElementById('dot-three').classList.toggle('active', step === 3);
+      currentStep = step;
+      updateStepIndicator();
       const heading = document.getElementById(['feelings-heading', 'colors-heading', 'notes-heading'][step - 1]);
       heading.focus();
       window.scrollTo(0, 0);
@@ -1014,6 +1279,91 @@
       }
     }
 
+    function clearOldCheckIns(records) {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(oldDatabaseName);
+        let absent = false;
+        let blocked = false;
+        request.onupgradeneeded = () => {
+          absent = true;
+          request.transaction.abort();
+        };
+        request.onerror = () => absent ? resolve() : reject(request.error);
+        request.onblocked = () => {
+          blocked = true;
+          reject(new Error('Old database is blocked by another tab'));
+        };
+        request.onsuccess = () => {
+          const database = request.result;
+          if (blocked) {
+            database.close();
+            return;
+          }
+          let transaction;
+          try {
+            transaction = database.transaction('check-ins', 'readwrite');
+          } catch (error) {
+            database.close();
+            reject(error);
+            return;
+          }
+          const store = transaction.objectStore('check-ins');
+          let conflict = false;
+          if (records) {
+            records.slice().sort((first, second) => second.key - first.key).forEach(({ key, value }) => {
+              const lookup = store.get(key);
+              lookup.onsuccess = () => {
+                if (!lookup.result) return;
+                const { pendingDownload: oldPending, ...oldEntry } = lookup.result;
+                const { pendingDownload: currentPending, ...currentEntry } = value;
+                if (JSON.stringify(oldEntry) !== JSON.stringify(currentEntry)) {
+                  conflict = true;
+                  transaction.abort();
+                  return;
+                }
+                store.delete(key);
+              };
+            });
+          } else store.clear();
+          transaction.oncomplete = () => {
+            database.close();
+            resolve();
+          };
+          transaction.onabort = transaction.onerror = () => {
+            database.close();
+            reject(conflict ? new Error('Legacy check-in differs from the current record') : transaction.error);
+          };
+        };
+      });
+    }
+
+    async function clearStoredCheckIns(keys = null) {
+      if (keys && !keys.length) return;
+      let records = null;
+      await useCheckInDatabase('readonly', store => {
+        const request = store.getAll();
+        if (keys) request.onsuccess = () => {
+          const keyRequest = store.getAllKeys();
+          keyRequest.onsuccess = () => {
+            records = keyRequest.result.map((key, index) => ({ key, value: request.result[index] }))
+              .filter(record => keys.includes(record.key));
+          };
+        };
+        return request;
+      });
+      if (keys && records.length !== keys.length) throw new Error('Downloaded check-ins changed before clearing');
+      await clearOldCheckIns(records);
+      await useCheckInDatabase('readwrite', store => {
+        if (!keys) return store.clear();
+        let firstRequest;
+        keys.slice().sort((first, second) => second - first).forEach(key => {
+          const request = store.delete(key);
+          if (!firstRequest) firstRequest = request;
+        });
+        return firstRequest;
+      });
+    }
+
     function clearDownloadCache(keys) {
       if (keys.length === 0) return Promise.resolve();
       return useCheckInDatabase('readwrite', store => {
@@ -1054,23 +1404,31 @@
     cancelSaveButton.addEventListener('click', cancelSave);
     saveButton.addEventListener('click', () => {
       if (settings.doNotSave) return;
-      if (!window.isSecureContext || !navigator.geolocation) {
+      if (settings.multipleUsers && !currentUser()) {
+        locationStatus.textContent = translate('Choose a user in Settings.');
+        return;
+      }
+      const profileIssue = settings.multipleUsers && profileStorageIssue();
+      if (profileIssue) {
+        locationStatus.textContent = translate(profileIssue);
+        return;
+      }
+      if (settings.saveLocation && (!window.isSecureContext || !navigator.geolocation)) {
         locationStatus.textContent = translate('Location is unavailable. Open the app on HTTPS or localhost and enable location on your device.');
         return;
       }
       const request = ++locationRequest;
       saveButton.disabled = true;
-      locationStatus.textContent = translate('Waiting for location permission and your device location...');
-      navigator.geolocation.getCurrentPosition(async position => {
+      const persistCheckIn = async coords => {
         if (request !== locationRequest || !locationDialog.open) return;
         savingCheckIn = true;
         cancelSaveButton.disabled = true;
         locationStatus.textContent = translate('Saving your check-in...');
         const checkIn = {
           ...pendingCheckIn,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracyMeters: position.coords.accuracy
+          latitude: coords ? coords.latitude : null,
+          longitude: coords ? coords.longitude : null,
+          accuracyMeters: coords ? coords.accuracy : null
         };
         try {
           savedCheckInKey = await useCheckInDatabase('readwrite', store => store.add({ ...checkIn, pendingDownload: true }));
@@ -1092,7 +1450,13 @@
         cancelSave();
         thanks.showModal();
         speak(translate('Thank you!'));
-      }, error => {
+      };
+      if (!settings.saveLocation) {
+        persistCheckIn(null);
+        return;
+      }
+      locationStatus.textContent = translate('Waiting for location permission and your device location...');
+      navigator.geolocation.getCurrentPosition(position => persistCheckIn(position.coords), error => {
         if (request !== locationRequest || !locationDialog.open) return;
         saveButton.disabled = false;
         locationStatus.textContent = translate(error.code === 1
@@ -1105,8 +1469,24 @@
       historyList.replaceChildren();
       historyStatus.textContent = translate('Loading saved check-ins...');
       historyDialog.showModal();
+      const user = currentUser();
+      const scope = currentUserScope();
+      const scopeStatus = document.getElementById('history-user-scope');
+      scopeStatus.hidden = !settings.multipleUsers && users.length === 0;
+      scopeStatus.textContent = settings.multipleUsers
+        ? user ? translate('Current user: {name}').replace('{name}', user.name) : translate('Choose a user in Settings.')
+        : translate('Showing unassigned check-ins.');
+      if (scope === undefined) {
+        historyStatus.textContent = translate('Choose a user in Settings.');
+        return;
+      }
+      const profileIssue = settings.multipleUsers && profileStorageIssue();
+      if (profileIssue) {
+        historyStatus.textContent = translate(profileIssue);
+        return;
+      }
       try {
-        const checkIns = await useCheckInDatabase('readonly', store => store.getAll());
+        const checkIns = (await useCheckInDatabase('readonly', store => store.getAll())).filter(checkIn => belongsToUser(checkIn, scope));
         const pendingCount = checkIns.filter(checkIn => checkIn.pendingDownload).length;
         historyStatus.textContent = pendingCount
           ? translate('{count} check-in(s) waiting to be downloaded.').replace('{count}', pendingCount)
@@ -1115,10 +1495,13 @@
         checkIns.slice().reverse().forEach(checkIn => {
           const item = document.createElement('li');
           const notes = checkIn.notes ? ` Notes: ${checkIn.notes}` : '';
-          item.textContent = translate('{date} — {feeling}, {color}.{notes} Location: {latitude}, {longitude} (accuracy: {accuracy} m).')
+          item.textContent = Number.isFinite(checkIn.latitude) && Number.isFinite(checkIn.longitude)
+            ? translate('{date} — {feeling}, {color}.{notes} Location: {latitude}, {longitude} (accuracy: {accuracy} m).')
             .replace('{date}', checkIn.localDateTime).replace('{feeling}', checkIn.feeling).replace('{color}', checkIn.color)
             .replace('{notes}', notes).replace('{latitude}', checkIn.latitude).replace('{longitude}', checkIn.longitude)
-            .replace('{accuracy}', Math.round(checkIn.accuracyMeters));
+            .replace('{accuracy}', Math.round(checkIn.accuracyMeters))
+            : translate('{date} — {feeling}, {color}.{notes} Location not saved.')
+              .replace('{date}', checkIn.localDateTime).replace('{feeling}', checkIn.feeling).replace('{color}', checkIn.color).replace('{notes}', notes);
           historyList.appendChild(item);
         });
       } catch (error) {
@@ -1143,7 +1526,7 @@
             entry.localDate || legacyDate.slice(0, 10) || entry.localDateTime || '',
             entry.localTime || legacyDate.slice(11, 19),
             entry.feeling, entry.color,
-            ...(summaryOnly ? [] : [entry.device || 'Not recorded', entry.latitude, entry.longitude, entry.accuracyMeters, entry.timestamp ?? '', entry.timeZoneOffsetMinutes ?? '']),
+            ...(summaryOnly ? [] : [entry.device || 'Not recorded', entry.latitude ?? '', entry.longitude ?? '', entry.accuracyMeters ?? '', entry.timestamp ?? '', entry.timeZoneOffsetMinutes ?? '']),
             entry.notes ?? '',
             ...(summaryOnly ? [
               Number.isFinite(entry.latitude) && Number.isFinite(entry.longitude)
@@ -1178,11 +1561,22 @@
 
     document.getElementById('download-history').addEventListener('click', async () => {
       try {
+        const scope = currentUserScope();
+        const user = currentUser();
+        if (scope === undefined) {
+          historyStatus.textContent = translate('Choose a user in Settings.');
+          return;
+        }
+        const profileIssue = settings.multipleUsers && profileStorageIssue();
+        if (profileIssue) {
+          historyStatus.textContent = translate(profileIssue);
+          return;
+        }
         const directory = typeof window.showDirectoryPicker === 'function'
           ? await window.showDirectoryPicker({ mode: 'readwrite' })
           : null;
         let downloadedKeys = [];
-        const checkIns = await useCheckInDatabase('readonly', store => {
+        const allCheckIns = await useCheckInDatabase('readonly', store => {
           const request = store.getAll();
           request.onsuccess = () => {
             const keysRequest = store.getAllKeys();
@@ -1190,21 +1584,24 @@
           };
           return request;
         });
+        downloadedKeys = downloadedKeys.filter((key, index) => belongsToUser(allCheckIns[index], scope));
+        const checkIns = allCheckIns.filter(checkIn => belongsToUser(checkIn, scope));
         if (checkIns.length === 0) {
           historyStatus.textContent = translate('No saved check-ins to download.');
           return;
         }
         const file = checkInsCsv(checkIns);
         if (directory) {
-          const folder = await directory.getDirectoryHandle('checkins', { create: true });
+          let folder = await directory.getDirectoryHandle('checkins', { create: true });
+          if (user) folder = await folder.getDirectoryHandle(userFolderName(user), { create: true });
           const handle = await folder.getFileHandle('checkins.csv', { create: true });
           const writable = await handle.createWritable();
           await writable.write(file);
           await writable.close();
-          historyStatus.textContent = translate('Saved checkins/checkins.csv in your chosen folder.');
+          historyStatus.textContent = translate(user ? 'Saved the user export in the chosen folder.' : 'Saved checkins/checkins.csv in your chosen folder.');
         } else {
-          downloadCsv(file, 'checkins.csv');
-          historyStatus.textContent = translate('Download started. Find checkins.csv in your browser’s downloads and move it to a checkins folder if you wish.');
+          downloadCsv(file, user ? `${userFolderName(user)}-checkins.csv` : 'checkins.csv');
+          historyStatus.textContent = translate(user ? 'User export download started.' : 'Download started. Find checkins.csv in your browser’s downloads and move it to a checkins folder if you wish.');
         }
         historyStatus.textContent += ` ${translate('Choose whether to clear or keep these downloaded records.')}`;
         showDownloadChoice(downloadedKeys);
@@ -1232,20 +1629,12 @@
       const status = downloadChoiceStatus;
       setDownloadChoiceBusy(true);
       try {
-        if (downloadedCheckInKeys.length) {
-          await useCheckInDatabase('readwrite', store => {
-            let firstRequest;
-            downloadedCheckInKeys.slice().sort((first, second) => second - first).forEach(key => {
-              const request = store.delete(key);
-              if (!firstRequest) firstRequest = request;
-            });
-            return firstRequest;
-          });
-        }
+        await clearStoredCheckIns(downloadedCheckInKeys);
         if (downloadedCheckInKeys.includes(savedCheckInKey)) {
           savedCheckIn = null;
           savedCheckInKey = undefined;
         }
+        historyList.replaceChildren();
         downloadChoiceDialog.close();
         historyStatus.textContent = translate('Downloaded check-in data cleared from this device.');
       } catch (error) {
@@ -1356,7 +1745,8 @@
       selectedColor = pendingColor;
       pendingColor = null;
       colorDialog.close();
-      showScreen(3);
+      if (settings.doNotSave) continueToSave(false);
+      else showScreen(3);
     });
     function declineColor() {
       pendingColor = null;
@@ -1379,18 +1769,21 @@
         localDateTime: date.toLocaleString(),
         timestamp: date.toISOString(),
         timeZoneOffsetMinutes: date.getTimezoneOffset(),
-        device: navigator.userAgent || navigator.platform || 'Not available'
+        device: navigator.userAgent || navigator.platform || 'Not available',
+        ...(currentUser() ? { userId: currentUser().id } : {})
       };
+      const locationOffDescription = 'An adult can save the feelings, color, notes, local date and time, and browser/device information on this device. Location is not requested or saved.';
       const locationEnabledDescription = 'An adult can allow location to save the feelings, color, notes, local date and time, device location, and browser/device information on this device. Location is required to save.';
       document.getElementById('location-heading').textContent = translate(settings.doNotSave ? 'Do Not Save is enabled' : 'Save this check-in?');
       document.getElementById('location-description').textContent = translate(settings.doNotSave
         ? 'The check-in was not saved. Location was not requested.'
-        : locationEnabledDescription);
-      saveButton.disabled = settings.doNotSave;
-      saveButton.classList.toggle('save-option-disabled', settings.doNotSave);
-      saveButton.textContent = translate(settings.doNotSave ? 'Saving is turned off' : 'Allow location and save');
+        : settings.saveLocation ? locationEnabledDescription : locationOffDescription);
+      const missingUser = settings.multipleUsers && !currentUser();
+      saveButton.disabled = settings.doNotSave || missingUser;
+      saveButton.classList.toggle('save-option-disabled', settings.doNotSave || missingUser);
+      saveButton.textContent = translate(settings.doNotSave ? 'Saving is turned off' : missingUser ? 'Choose a user in Settings.' : settings.saveLocation ? 'Allow location and save' : 'Save check-in');
       document.getElementById('done-without-saving').hidden = !settings.doNotSave;
-      locationStatus.textContent = '';
+      locationStatus.textContent = !settings.doNotSave && missingUser ? translate('Choose a user in Settings.') : '';
       locationDialog.showModal();
     }
     document.getElementById('done-without-saving').addEventListener('click', () => {

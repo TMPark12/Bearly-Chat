@@ -9,6 +9,8 @@ test('caches the app and serves its pages and styles when offline', async () => 
   const files = new Map([
     ['./index.html', 'cached page'],
     ['./location-setup.html', 'cached location page'],
+    ['./privacy.html', 'cached privacy page'],
+    ['./terms.html', 'cached terms page'],
     ['./style.css', 'cached styles'],
     ['./translations.js', 'cached translations']
   ]);
@@ -29,6 +31,8 @@ test('caches the app and serves its pages and styles when offline', async () => 
   await pending;
   assert.ok(precached.includes('./index.html'));
   assert.ok(precached.includes('./location-setup.html'));
+  assert.ok(precached.includes('./privacy.html'));
+  assert.ok(precached.includes('./terms.html'));
   assert.ok(precached.includes('./style.css'));
   assert.ok(precached.includes('./translations.js'));
   assert.ok(precached.includes('./manifest.webmanifest'));
@@ -45,6 +49,16 @@ test('caches the app and serves its pages and styles when offline', async () => 
     respondWith(promise) { pending = promise; }
   });
   assert.equal(await pending, 'cached location page');
+  handlers.fetch({
+    request: { method: 'GET', url: 'https://example.test/privacy.html', mode: 'navigate', path: './privacy.html' },
+    respondWith(promise) { pending = promise; }
+  });
+  assert.equal(await pending, 'cached privacy page');
+  handlers.fetch({
+    request: { method: 'GET', url: 'https://example.test/terms.html', mode: 'navigate', path: './terms.html' },
+    respondWith(promise) { pending = promise; }
+  });
+  assert.equal(await pending, 'cached terms page');
   handlers.fetch({
     request: { method: 'GET', url: 'https://example.test/style.css', mode: 'no-cors', path: './style.css' },
     respondWith(promise) { pending = promise; }
@@ -77,7 +91,7 @@ test('removes old app caches without touching unrelated caches', async () => {
   const context = {
     self: { addEventListener(name, callback) { handlers[name] = callback; } },
     caches: {
-      keys() { return Promise.resolve(['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'another-app']); },
+      keys() { return Promise.resolve(['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'bearly-chat-v33', 'bearly-chat-v34', 'bearly-chat-v35', 'bearly-chat-v36', 'bearly-chat-v37', 'bearly-chat-v38', 'bearly-chat-v39', 'another-app']); },
       delete(key) { deleted.push(key); return Promise.resolve(true); }
     }
   };
@@ -85,5 +99,5 @@ test('removes old app caches without touching unrelated caches', async () => {
   let pending;
   handlers.activate({ waitUntil(promise) { pending = promise; } });
   await pending;
-  assert.deepEqual(deleted, ['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32']);
+  assert.deepEqual(deleted, ['toddle-cation-v29', 'bearly-chat-v29', 'bearly-chat-v30', 'bearly-chat-v31', 'bearly-chat-v32', 'bearly-chat-v33', 'bearly-chat-v34', 'bearly-chat-v35', 'bearly-chat-v36', 'bearly-chat-v37', 'bearly-chat-v38', 'bearly-chat-v39']);
 });

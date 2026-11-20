@@ -46,7 +46,7 @@ function createApp(options = {}) {
   const feelings = element();
   const feelingChoices = [feeling, sadFeeling, madFeeling];
   if (options.allFeelings) {
-    for (const match of html.matchAll(/<button class="feeling-choice"[^>]*><span class="feeling-emoji"[^>]*>([^<]+)<\/span>([^<]+)<\/button>/g)) {
+    for (const match of html.matchAll(/<button class="feeling-choice"[^>]*><span class="feeling-emoji"[^>]*>([^<]+)<\/span><span class="feeling-label"[^>]*>([^<]+)<\/span><\/button>/g)) {
       if (['Happy', 'Sad', 'Mad'].includes(match[2])) continue;
       const choice = element();
       choice.lastChild = { textContent: match[2] };
@@ -74,7 +74,7 @@ function createApp(options = {}) {
   const metadata = options.metadata || new Map();
   if (options.legacy) storage.set('toddle-cation-check-ins', JSON.stringify(options.legacy));
   const localStorage = {
-    getItem(key) { if (options.storageError) throw new Error('Storage unavailable'); return storage.get(key) ?? null; },
+    getItem(key) { if (options.storageError) throw new Error('Storage unavailable'); return storage.get(key) ?? (key === 'bearly-chat-settings' && !storage.has('toddle-cation-settings') && !options.defaultSettings ? JSON.stringify({ saveLocation: options.locationOff !== true, doNotSave: false }) : null); },
     setItem(key, value) { if (options.storageError) throw new Error('Storage unavailable'); storage.set(key, value); },
     removeItem(key) { if (options.storageError) throw new Error('Storage unavailable'); storage.delete(key); }
   };
@@ -86,6 +86,7 @@ function createApp(options = {}) {
   };
   const window = {
     isSecureContext: options.secure !== false,
+    crypto: require('node:crypto').webcrypto,
     matchMedia() { return { matches: !!options.standalone }; },
     addEventListener(name, callback) { handlers[name] = callback; },
     location: { reload() { if (options.onReload) options.onReload(); } },
@@ -109,18 +110,18 @@ function createApp(options = {}) {
       speak(utterance) { spoken.push(utterance.text); utterances.push(utterance); }
     };
   }
-  function makeDatabase(records, metadata) {
+  function makeDatabase(records, metadata, isOld = false) {
     return {
     createObjectStore() {},
     close() {},
     transaction() {
-      const transaction = { pending: 0 };
+      const transaction = { pending: 0, abort() { this.aborted = true; queueMicrotask(() => this.onabort()); } };
       transaction.objectStore = name => {
         function execute(action) {
           const request = {};
           transaction.pending++;
           queueMicrotask(() => {
-            if (options.databaseError) {
+            if (isOld ? options.oldDatabaseError : options.databaseError) {
               transaction.error = new Error('Database unavailable');
               transaction.onerror();
               return;
@@ -129,7 +130,7 @@ function createApp(options = {}) {
             if (request.onsuccess) request.onsuccess();
             transaction.pending--;
             if (!transaction.pending) queueMicrotask(() => {
-              if (!transaction.pending) transaction.oncomplete();
+              if (!transaction.pending && !transaction.aborted) transaction.oncomplete();
             });
           });
           return request;
@@ -153,7 +154,7 @@ function createApp(options = {}) {
     };
   }
   const database = makeDatabase(records, metadata);
-  const oldDatabase = options.oldRecords ? makeDatabase(options.oldRecords, new Map(options.oldMetadata)) : null;
+  const oldDatabase = options.oldRecords ? makeDatabase(options.oldRecords, new Map(options.oldMetadata), true) : null;
   let created = false;
   const indexedDB = {
     open(name) {
@@ -210,7 +211,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 function select(app) {
   chooseFeeling(app);
   chooseColor(app);
-  app.elements.get('continue-to-save').click();
+  if (!app.elements.get('notes-screen').hidden) app.elements.get('continue-to-save').click();
 }
 
 function chooseFeeling(app) {
@@ -308,6 +309,68 @@ test('help and demo offer printing and report when printing is unavailable', () 
   assert.match(unavailable.elements.get('demo-print-status').textContent, /printing is unavailable/i);
 });
 
+test('Settings demo covers each area without changing settings or the check-in', () => {
+  const app = createApp();
+  chooseFeeling(app);
+  chooseColor(app);
+  app.elements.get('owner-notes').value = 'Note in progress';
+  app.elements.get('open-settings').click();
+  const before = new Map(app.storage);
+  app.elements.get('open-settings-demo').click();
+  assert.equal(app.elements.get('settings-demo-dialog').open, true);
+  assert.equal(app.elements.get('settings-demo-progress').textContent, 'Step 1 of 7');
+  assert.equal(app.elements.get('settings-demo-back').disabled, true);
+  for (let step = 2; step <= 7; step++) {
+    app.elements.get('settings-demo-next').click();
+    assert.equal(app.elements.get(`settings-demo-step-${step}`).hidden, false);
+    assert.equal(app.elements.get(`settings-demo-step-${step - 1}`).hidden, true);
+  }
+  assert.equal(app.elements.get('settings-demo-next').hidden, true);
+  app.elements.get('settings-demo-back').click();
+  assert.equal(app.elements.get('settings-demo-step-6').hidden, false);
+  app.elements.get('settings-demo-close').click();
+  assert.equal(app.elements.get('settings-screen').hidden, false);
+  assert.deepEqual(app.storage, before);
+  assert.equal(app.getRequest(), undefined);
+  assert.equal(app.records.length, 0);
+  app.elements.get('close-settings').click();
+  assert.equal(app.elements.get('notes-screen').hidden, false);
+  assert.equal(app.elements.get('owner-notes').value, 'Note in progress');
+});
+
+test('Settings guide can be printed from Settings or the demo, and reports unavailable printing', () => {
+  let printCalls = 0;
+  const app = createApp({ onPrint: () => { printCalls++; } });
+  app.elements.get('open-settings').click();
+  app.elements.get('print-settings-guide').click();
+  assert.equal(app.elements.get('settings-demo-dialog').open, true);
+  assert.equal(printCalls, 1);
+  app.elements.get('settings-demo-print').click();
+  assert.equal(printCalls, 2);
+  app.elements.get('settings-demo-close').click();
+  assert.equal(app.elements.get('settings-screen').hidden, false);
+
+  const unavailable = createApp();
+  unavailable.elements.get('open-settings').click();
+  unavailable.elements.get('print-settings-guide').click();
+  assert.match(unavailable.elements.get('settings-demo-print-status').textContent, /printing is unavailable/i);
+});
+
+test('printable walkthroughs include current saving flow and all Settings areas', () => {
+  const mainDemo = html.match(/<dialog\b[^>]*id="demo-dialog"[^>]*>([\s\S]*?)<\/dialog>/)[1];
+  const settingsDemo = html.match(/<dialog\b[^>]*id="settings-demo-dialog"[^>]*>([\s\S]*?)<\/dialog>/)[1];
+  const css = fs.readFileSync(require('node:path').join(__dirname, '../style.css'), 'utf8');
+  assert.match(mainDemo, /notes page is skipped/);
+  assert.match(mainDemo, /permission and a location fix are required/);
+  assert.match(mainDemo, /select a user in Settings before saving/);
+  assert.match(mainDemo, /Only saved check-ins can be downloaded/);
+  for (const heading of ['Voice', 'Check-in', 'Save for multiple users', 'Display', 'Saved data', 'Privacy', 'Terms of Use and Disclaimer']) {
+    assert.ok(settingsDemo.includes(`>${heading}</h3>`));
+  }
+  assert.match(css, /body\.settings-demo-open > :not\(#settings-demo-dialog\)/);
+  assert.match(css, /\.demo-step\[hidden\]\s*\{\s*display:\s*block\s*!important/);
+});
+
 test('help and printable demo include the installation website link', () => {
   const url = 'https://tmpark12.github.io/Bearly-Chat/';
   for (const id of ['help-dialog', 'demo-dialog']) {
@@ -325,6 +388,11 @@ test('keeps the feeling choices in their original order on load', () => {
 test('keeps the color choices in their original order on load', () => {
   const app = createApp();
   assert.deepEqual(app.colorOrder, ['Blue', 'Red', 'Yellow']);
+});
+
+test('color choices follow rainbow order before black and white', () => {
+  const colors = Array.from(html.matchAll(/<button class="color-choice" data-color="([^"]+)"/g), match => match[1]);
+  assert.deepEqual(colors, ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'black', 'white']);
 });
 
 test('uses a female device voice even when a male preference was previously saved', async () => {
@@ -413,6 +481,66 @@ test('migrates existing database records once and preserves the old backup', asy
   await flush();
   assert.equal(records.length, 1);
   assert.match(reopened.elements.get('history-list').children[0].textContent, /Happy, Blue/);
+});
+
+test('clearing saved check-ins removes current and legacy copies without reimporting them', async () => {
+  const oldRecords = [{ feeling: 'Happy', color: 'Blue' }, { feeling: 'Sad', color: 'Red' }];
+  const records = [];
+  const metadata = new Map();
+  const storageValues = new Map([['toddle-cation-check-ins', JSON.stringify(oldRecords)]]);
+  const options = { oldRecords, records, metadata, storageValues, oldMetadata: [['legacy-imported', true]] };
+  const app = createApp(options);
+  await app.elements.get('settings-clear').click();
+  assert.equal(records.length, 0);
+  assert.equal(oldRecords.length, 0);
+  assert.equal(storageValues.has('toddle-cation-check-ins'), false);
+  assert.match(app.elements.get('settings-status').textContent, /cleared/i);
+  const reopened = createApp(options);
+  reopened.elements.get('open-history').click();
+  await flush();
+  assert.equal(records.length, 0);
+});
+
+test('clearing an export removes its legacy copies but preserves newer check-ins', async () => {
+  const oldRecords = [{ feeling: 'Happy', color: 'Blue' }, { feeling: 'Sad', color: 'Red' }];
+  const records = [];
+  const app = createApp({ oldRecords, records });
+  app.elements.get('open-history').click();
+  await flush();
+  await app.elements.get('download-history').click();
+  records.push({ feeling: 'New', color: 'Green' });
+  await app.elements.get('clear-downloaded-data').click();
+  assert.equal(oldRecords.length, 0);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].feeling, 'New');
+});
+
+test('a legacy backup deletion failure does not report success or erase current records', async () => {
+  const oldRecords = [{ feeling: 'Happy', color: 'Blue' }];
+  const records = [{ feeling: 'Happy', color: 'Blue' }];
+  const metadata = new Map([['old-database-imported', true]]);
+  const app = createApp({ oldRecords, records, metadata, oldDatabaseError: true });
+  await app.elements.get('settings-clear').click();
+  assert.equal(oldRecords.length, 1);
+  assert.equal(records.length, 1);
+  assert.match(app.elements.get('settings-status').textContent, /could not clear/i);
+  await app.elements.get('download-history').click();
+  await app.elements.get('clear-downloaded-data').click();
+  assert.equal(oldRecords.length, 1);
+  assert.equal(records.length, 1);
+  assert.match(app.elements.get('download-choice-status').textContent, /could not clear/i);
+});
+
+test('clearing an export does not erase a different legacy record with the same key', async () => {
+  const oldRecords = [{ feeling: 'Different', color: 'Red' }];
+  const records = [{ feeling: 'Happy', color: 'Blue' }];
+  const metadata = new Map([['old-database-imported', true]]);
+  const app = createApp({ oldRecords, records, metadata });
+  await app.elements.get('download-history').click();
+  await app.elements.get('clear-downloaded-data').click();
+  assert.equal(oldRecords.length, 1);
+  assert.equal(records.length, 1);
+  assert.match(app.elements.get('download-choice-status').textContent, /could not clear/i);
 });
 
 test('migrates old settings and invitation flags without overwriting newer values', () => {
@@ -528,7 +656,7 @@ test('up to three distinct confirmed feelings are saved and exported together', 
 
 test('every emoji requires confirmation before asking to add another feeling', () => {
   const app = createApp({ allFeelings: true });
-  assert.equal(app.feelingChoices.length, 12);
+  assert.equal(app.feelingChoices.length, 13);
   for (const choice of app.feelingChoices) {
     choice.click();
     assert.equal(app.elements.get('feeling-dialog').open, true);
@@ -554,6 +682,12 @@ test('every emoji requires confirmation before asking to add another feeling', (
       assert.equal(app.elements.get('colors-screen').hidden, false);
     }
   }
+});
+
+test('Hyper and Shy use face emojis', () => {
+  const choices = Array.from(html.matchAll(/<button class="feeling-choice"[^>]*><span class="feeling-emoji"[^>]*>([^<]+)<\/span><span class="feeling-label"[^>]*>([^<]+)<\/span><\/button>/g));
+  assert.ok(choices.some(([, emoji, label]) => emoji === '🤪' && label === 'Hyper'));
+  assert.ok(choices.some(([, emoji, label]) => emoji === '😳' && label === 'Shy'));
 });
 
 test('choosing no after the second feeling continues and saves both', async () => {
@@ -970,9 +1104,10 @@ test('cancelling while locating prevents a late result from saving', async () =>
 test('storage failure keeps the check-in unsaved and reports the error', async () => {
   for (const options of [{ storageError: true }, { databaseError: true }]) {
     const app = createApp(options);
+    app.elements.get('setting-do-not-save').events.change({ target: { checked: false } });
     select(app);
     app.elements.get('save-check-in').click();
-    app.getRequest().success(position());
+    if (app.getRequest()) app.getRequest().success(position());
     await flush();
     assert.match(app.elements.get('location-status').textContent, /could not save/i);
     assert.equal(app.elements.get('thanks').open, undefined);
@@ -1395,7 +1530,7 @@ test('settings select voice and language, adjust volume, and shuffle choices', (
   assert.equal(utterance.volume, 0.4);
   assert.deepEqual(JSON.parse(app.storage.get('bearly-chat-settings')), {
     voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false,
-    voiceGender: 'male', language: 'es', volume: 0.4, muted: false, randomize: false, doNotSave: false
+    voiceGender: 'male', language: 'es', volume: 0.4, muted: false, randomize: false, doNotSave: false, saveLocation: true, multipleUsers: false, currentUser: ''
   });
 
   elements.get('setting-randomize').events.change({ target: { checked: true } });
@@ -1406,13 +1541,17 @@ test('settings select voice and language, adjust volume, and shuffle choices', (
   assert.deepEqual(app.colorContainer.children.map(choice => choice.getAttribute('aria-label')), originalColors);
 });
 
-test('Do Not Save skips location and storage, and disables download', async () => {
-  const app = createApp();
-  app.elements.get('setting-do-not-save').events.change({ target: { checked: true } });
+test('Do Not Save is enabled by default and skips location and storage', async () => {
+  const app = createApp({ defaultSettings: true });
+  assert.equal(app.elements.get('setting-do-not-save').checked, true);
+  assert.equal(app.elements.get('step-text').textContent, '1 of 2');
   chooseFeeling(app);
+  assert.equal(app.elements.get('step-text').textContent, '2 of 2');
   chooseColor(app);
-  app.elements.get('continue-to-save').click();
 
+  assert.equal(app.elements.get('notes-screen').hidden, true);
+  assert.equal(app.elements.get('step-text').textContent, '2 of 2');
+  assert.equal(app.elements.get('dot-three').hidden, true);
   assert.equal(app.elements.get('location-dialog').open, true);
   assert.equal(app.elements.get('save-check-in').disabled, true);
   assert.match(app.elements.get('location-description').textContent, /location was not requested/i);
@@ -1426,4 +1565,334 @@ test('Do Not Save skips location and storage, and disables download', async () =
   assert.equal(app.elements.get('download-check-in').disabled, true);
   assert.match(app.elements.get('thank-saved-status').textContent, /not saved/i);
   assert.equal(app.records.length, 0);
+  app.elements.get('another-check-in').click();
+  assert.equal(app.elements.get('step-text').textContent, '1 of 2');
+});
+
+test('the two-step indicator follows the selected language', () => {
+  const app = createApp({ defaultSettings: true });
+  app.elements.get('setting-language').events.change({ target: { value: 'es' } });
+  assert.equal(app.elements.get('step-text').textContent, '1 de 2');
+  chooseFeeling(app);
+  assert.equal(app.elements.get('step-text').textContent, '2 de 2');
+});
+
+test('enabling Do Not Save from the notes page skips it when settings close', () => {
+  const app = createApp();
+  chooseFeeling(app);
+  chooseColor(app);
+  app.elements.get('owner-notes').value = 'Unfinished note';
+  app.elements.get('open-settings').click();
+  app.elements.get('setting-do-not-save').events.change({ target: { checked: true } });
+  app.elements.get('close-settings').click();
+
+  assert.equal(app.elements.get('notes-screen').hidden, true);
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  assert.equal(app.elements.get('step-text').textContent, '2 of 2');
+  assert.equal(app.elements.get('location-dialog').open, true);
+  app.elements.get('cancel-save').click();
+  assert.equal(app.elements.get('colors-screen').hidden, false);
+  assert.equal(app.elements.get('notes-screen').hidden, true);
+});
+
+test('enabling saving restores the third step during a check-in', () => {
+  const app = createApp({ defaultSettings: true });
+  chooseFeeling(app);
+  app.elements.get('open-settings').click();
+  app.elements.get('setting-do-not-save').events.change({ target: { checked: false } });
+  app.elements.get('close-settings').click();
+  assert.equal(app.elements.get('step-text').textContent, '2 of 3');
+  assert.equal(app.elements.get('dot-three').hidden, false);
+  chooseColor(app);
+  assert.equal(app.elements.get('notes-screen').hidden, false);
+  assert.equal(app.elements.get('step-text').textContent, '3 of 3');
+});
+
+test('saving can be explicitly enabled and remains enabled on reload', () => {
+  const app = createApp({ defaultSettings: true });
+  app.elements.get('setting-do-not-save').events.change({ target: { checked: false } });
+  const reloaded = createApp({ defaultSettings: true, storageValues: app.storage });
+  assert.equal(reloaded.elements.get('setting-do-not-save').checked, false);
+  const invalid = createApp({ defaultSettings: true, storageValues: new Map([['bearly-chat-settings', JSON.stringify({ doNotSave: 'false' })]]) });
+  assert.equal(invalid.elements.get('setting-do-not-save').checked, true);
+});
+
+test('multi-user mode is optional and creates users with one naming dialog', () => {
+  const app = createApp({ defaultSettings: true });
+  assert.equal(app.elements.get('setting-multiple-users').checked, false);
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  assert.equal(app.elements.get('add-user-dialog').open, true);
+  app.elements.get('save-user').click();
+  assert.match(app.elements.get('new-user-status').textContent, /enter a user name/i);
+  app.elements.get('new-user-name').value = '  Alex  ';
+  app.elements.get('save-user').click();
+  const users = JSON.parse(app.storage.get('bearly-chat-users'));
+  assert.equal(users.length, 1);
+  assert.equal(users[0].name, 'Alex');
+  assert.equal(app.elements.get('add-user-dialog').open, false);
+  assert.match(app.elements.get('current-user-status').textContent, /Alex/);
+  assert.equal(app.elements.get('setting-do-not-save').checked, true);
+  app.elements.get('add-user').click();
+  app.elements.get('new-user-name').value = 'alex';
+  app.elements.get('save-user').click();
+  assert.match(app.elements.get('new-user-status').textContent, /already in use/i);
+  assert.equal(JSON.parse(app.storage.get('bearly-chat-users')).length, 1);
+  app.elements.get('cancel-user').click();
+  const reloaded = createApp({ defaultSettings: true, storageValues: app.storage });
+  assert.equal(reloaded.elements.get('setting-multiple-users').checked, true);
+  assert.equal(reloaded.elements.get('setting-current-user').value, users[0].id);
+  assert.equal(reloaded.elements.get('setting-do-not-save').checked, true);
+});
+
+test('adding a user does not overwrite profiles changed in another tab', () => {
+  const storageValues = new Map();
+  const first = createApp({ defaultSettings: true, storageValues });
+  const second = createApp({ defaultSettings: true, storageValues });
+  first.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  first.elements.get('new-user-name').value = 'Alex';
+  first.elements.get('save-user').click();
+  second.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  second.elements.get('new-user-name').value = 'Sam';
+  second.elements.get('save-user').click();
+  assert.match(second.elements.get('new-user-status').textContent, /another tab/i);
+  assert.deepEqual(JSON.parse(storageValues.get('bearly-chat-users')).map(user => user.name), ['Alex']);
+});
+
+test('a user must be selected before saving or viewing multi-user records', async () => {
+  const records = [{ feeling: 'Private', color: 'Red' }];
+  const app = createApp({ records, locationOff: true });
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  app.elements.get('cancel-user').click();
+  select(app);
+  assert.equal(app.elements.get('save-check-in').disabled, true);
+  assert.match(app.elements.get('location-status').textContent, /choose a user/i);
+  app.elements.get('open-history').click();
+  await flush();
+  assert.equal(app.elements.get('history-list').children.length, 0);
+  assert.match(app.elements.get('history-status').textContent, /choose a user/i);
+  assert.equal(records.length, 1);
+});
+
+test('Do Not Save still prevents check-ins for a selected user', async () => {
+  const app = createApp({ defaultSettings: true });
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  app.elements.get('new-user-name').value = 'Alex';
+  app.elements.get('save-user').click();
+  select(app);
+  assert.equal(app.elements.get('save-check-in').disabled, true);
+  app.elements.get('done-without-saving').click();
+  await flush();
+  assert.equal(app.records.length, 0);
+  assert.equal(app.getRequest(), undefined);
+});
+
+test('checking Do Not Save prevents new check-ins even when location and multi-user mode are enabled', async () => {
+  let databaseOpens = 0;
+  const records = [{ feeling: 'Previously saved' }];
+  const app = createApp({ records, onOpenDatabase() { databaseOpens++; } });
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  app.elements.get('new-user-name').value = 'Alex';
+  app.elements.get('save-user').click();
+  app.elements.get('setting-do-not-save').events.change({ target: { checked: true } });
+  app.elements.get('owner-notes').value = 'Private note';
+  select(app);
+  assert.equal(app.elements.get('save-check-in').disabled, true);
+  app.elements.get('save-check-in').events.click();
+  app.elements.get('done-without-saving').click();
+  await flush();
+  assert.equal(databaseOpens, 0);
+  assert.equal(app.getRequest(), undefined);
+  assert.deepEqual(records, [{ feeling: 'Previously saved' }]);
+  assert.equal(app.elements.get('download-check-in').disabled, true);
+});
+
+test('changed profile storage blocks saving and exporting until reload', async () => {
+  const app = createApp({ locationOff: true });
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  app.elements.get('new-user-name').value = 'Alex';
+  app.elements.get('save-user').click();
+  app.storage.delete('bearly-chat-users');
+  select(app);
+  app.elements.get('save-check-in').click();
+  assert.match(app.elements.get('location-status').textContent, /another tab/i);
+  assert.equal(app.records.length, 0);
+  await app.elements.get('download-history').click();
+  assert.match(app.elements.get('history-status').textContent, /another tab/i);
+  assert.equal(app.downloads.length, 0);
+});
+
+test('users have separate saved check-ins and exports; unassigned records remain separate', async () => {
+  const records = [{ feeling: 'Unassigned', color: 'Red' }];
+  const app = createApp({ records, locationOff: true });
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  app.elements.get('new-user-name').value = 'Alex';
+  app.elements.get('save-user').click();
+  const alex = JSON.parse(app.storage.get('bearly-chat-users'))[0];
+  select(app);
+  app.elements.get('save-check-in').click();
+  await flush();
+  assert.equal(records[1].userId, alex.id);
+  app.elements.get('another-check-in').click();
+  app.elements.get('add-user').click();
+  app.elements.get('new-user-name').value = 'Sam';
+  app.elements.get('save-user').click();
+  const sam = JSON.parse(app.storage.get('bearly-chat-users'))[1];
+  app.sadFeeling.click();
+  app.elements.get('confirm-feeling').click();
+  app.elements.get('add-feeling-no').click();
+  chooseColor(app);
+  app.elements.get('continue-to-save').click();
+  app.elements.get('save-check-in').click();
+  await flush();
+  assert.equal(records[2].userId, sam.id);
+  app.elements.get('another-check-in').click();
+  app.elements.get('setting-current-user').events.change({ target: { value: alex.id } });
+  app.elements.get('open-history').click();
+  await flush();
+  assert.equal(app.elements.get('history-list').children.length, 1);
+  await app.elements.get('download-history').click();
+  const csv = await app.downloads[0].text();
+  assert.match(csv, /Happy/);
+  assert.doesNotMatch(csv, /Unassigned|"Sad"/);
+  assert.match(app.downloadLinks[0], /Alex-checkins\.csv$/);
+  await app.elements.get('clear-downloaded-data').click();
+  assert.deepEqual(records.map(record => record.feeling), ['Unassigned', 'Sad']);
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: false } });
+  app.elements.get('open-history').click();
+  await flush();
+  assert.equal(app.elements.get('history-list').children.length, 1);
+  assert.match(app.elements.get('history-list').children[0].textContent, /Unassigned/);
+});
+
+test('folder exports create a safe, unique folder for the selected user', async () => {
+  const calls = [];
+  const app = createApp({ locationOff: true, showDirectoryPicker() {
+    return Promise.resolve({
+      async getDirectoryHandle(name) {
+        calls.push(name);
+        return {
+          async getDirectoryHandle(userFolder) {
+            calls.push(userFolder);
+            return { async getFileHandle(name) {
+              calls.push(name);
+              return { async createWritable() { return { async write() {}, async close() {} }; } };
+            } };
+          }
+        };
+      }
+    });
+  } });
+  app.elements.get('setting-multiple-users').events.change({ target: { checked: true } });
+  app.elements.get('new-user-name').value = 'A/B';
+  app.elements.get('save-user').click();
+  const user = JSON.parse(app.storage.get('bearly-chat-users'))[0];
+  app.records.push({ feeling: 'Happy', color: 'Blue', userId: user.id });
+  await app.elements.get('download-history').click();
+  assert.deepEqual(calls, ['checkins', `user-${user.id}-A_B`, 'checkins.csv']);
+});
+
+test('damaged profile storage prevents access to another user’s records', async () => {
+  const storageValues = new Map([
+    ['bearly-chat-settings', JSON.stringify({ multipleUsers: true, currentUser: 'missing', doNotSave: false })],
+    ['bearly-chat-users', '{invalid']
+  ]);
+  const app = createApp({ storageValues, records: [{ feeling: 'Private' }] });
+  assert.equal(app.elements.get('setting-multiple-users').disabled, true);
+  assert.match(app.elements.get('settings-status').textContent, /could not read user profiles/i);
+  app.elements.get('open-history').click();
+  await flush();
+  assert.equal(app.elements.get('history-list').children.length, 0);
+  assert.match(app.elements.get('history-status').textContent, /choose a user/i);
+});
+
+test('location is off by default and saving works without location support', async () => {
+  const app = createApp({ locationOff: true, noGeolocation: true, secure: false });
+  select(app);
+  assert.match(app.elements.get('location-description').textContent, /location is not requested or saved/i);
+  assert.equal(app.elements.get('save-check-in').textContent, 'Save check-in');
+  app.elements.get('save-check-in').click();
+  await flush();
+  assert.equal(app.getRequest(), undefined);
+  assert.equal(app.records.length, 1);
+  assert.equal(app.records[0].latitude, null);
+  assert.equal(app.records[0].longitude, null);
+  assert.equal(app.records[0].accuracyMeters, null);
+  assert.equal(app.elements.get('thanks').open, true);
+  app.elements.get('open-history').click();
+  await flush();
+  assert.match(app.elements.get('history-list').children[0].textContent, /location not saved/i);
+  await app.elements.get('download-check-in').click();
+  assert.doesNotMatch(await app.downloads[0].text(), /null|google\.com\/maps|undefined/);
+  await app.elements.get('download-history').click();
+  assert.doesNotMatch(await app.downloads[1].text(), /null|google\.com\/maps|undefined/);
+});
+
+test('location saving can be enabled and remembered', () => {
+  const app = createApp({ locationOff: true });
+  app.elements.get('setting-save-location').events.change({ target: { checked: true } });
+  assert.equal(JSON.parse(app.storage.get('bearly-chat-settings')).saveLocation, true);
+  const reloaded = createApp({ storageValues: app.storage, locationOff: true });
+  select(reloaded);
+  assert.equal(reloaded.elements.get('save-check-in').textContent, 'Allow location and save');
+  reloaded.elements.get('save-check-in').click();
+  assert.ok(reloaded.getRequest());
+});
+
+test('existing and invalid settings do not enable location implicitly', async () => {
+  for (const settings of [{ voice: false, doNotSave: false }, { saveLocation: 'true', doNotSave: false }]) {
+    const storageValues = new Map([['bearly-chat-settings', JSON.stringify(settings)]]);
+    const app = createApp({ storageValues, locationOff: true });
+    select(app);
+    app.elements.get('save-check-in').click();
+    assert.equal(app.getRequest(), undefined);
+    await flush();
+    assert.equal(app.records[0].latitude, null);
+  }
+});
+
+test('turning location off stops future location requests', async () => {
+  const app = createApp();
+  app.elements.get('setting-save-location').events.change({ target: { checked: false } });
+  select(app);
+  app.elements.get('save-check-in').click();
+  await flush();
+  assert.equal(app.getRequest(), undefined);
+  assert.equal(app.records[0].latitude, null);
+});
+
+test('turning off location does not remove location from older check-ins', async () => {
+  const records = [{ localDateTime: 'Earlier', feeling: 'Happy', color: 'Blue', latitude: 1, longitude: 2, accuracyMeters: 3 }];
+  const app = createApp({ records, locationOff: true });
+  app.elements.get('open-history').click();
+  await flush();
+  assert.match(app.elements.get('history-list').children[0].textContent, /1, 2/);
+  await app.elements.get('download-history').click();
+  assert.match(await app.downloads[0].text(), /"1","2","3"/);
+});
+
+test('pages use a content security policy, no-referrer and local resources', () => {
+  const css = fs.readFileSync(require('node:path').join(__dirname, '../style.css'), 'utf8');
+  const privacy = fs.readFileSync(require('node:path').join(__dirname, '../privacy.html'), 'utf8');
+  const terms = fs.readFileSync(require('node:path').join(__dirname, '../terms.html'), 'utf8');
+  for (const page of [html, locationSetupHtml, privacy, terms]) {
+    assert.match(page, /http-equiv="Content-Security-Policy"/);
+    assert.match(page, /default-src 'self'/);
+    assert.match(page, /name="referrer" content="no-referrer"/);
+  }
+  assert.doesNotMatch(css, /@import|https?:\/\//);
+  assert.doesNotMatch(html, /innerHTML|insertAdjacentHTML|document\.write|eval\(/);
+});
+
+test('Settings links to the privacy policy and terms, including contact and offline disclosures', () => {
+  const privacy = fs.readFileSync(require('node:path').join(__dirname, '../privacy.html'), 'utf8');
+  const terms = fs.readFileSync(require('node:path').join(__dirname, '../terms.html'), 'utf8');
+  assert.match(html, /href="\.\/privacy\.html"/);
+  assert.match(html, /href="\.\/terms\.html"/);
+  assert.match(privacy, /November 19, 2026/);
+  assert.match(privacy, /user names.*Do Not Save/i);
+  assert.match(privacy, /online speech service/i);
+  assert.match(privacy, /mailto:tmpark12@asu\.edu/);
+  assert.match(terms, /Not medical, therapy or legal advice/);
+  assert.match(terms, /No warranty and limits of liability/);
+  assert.match(terms, /mailto:tmpark12@asu\.edu/);
 });
