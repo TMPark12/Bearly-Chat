@@ -34,11 +34,12 @@
     </aside>
     <main>
       <section id="feelings-screen" aria-labelledby="feelings-heading">
-        <svg class="caterpillar-head" viewBox="0 0 140 110" aria-hidden="true" focusable="false">
-          <path d="M55 39 Q46 12 35 12 M85 39 Q94 12 105 12" fill="none" stroke="#477f5c" stroke-width="5" stroke-linecap="round"/>
-          <circle cx="35" cy="12" r="6" fill="#e99b72"/>
-          <circle cx="105" cy="12" r="6" fill="#e99b72"/>
-          <ellipse cx="70" cy="70" rx="49" ry="37" fill="#a8d7a4" stroke="#669e70" stroke-width="3"/>
+        <svg class="turtle" viewBox="0 0 140 110" aria-hidden="true" focusable="false">
+          <ellipse cx="32" cy="88" rx="13" ry="10" fill="#8cc79a"/>
+          <ellipse cx="108" cy="88" rx="13" ry="10" fill="#8cc79a"/>
+          <circle cx="70" cy="22" r="14" fill="#8cc79a"/>
+          <path d="M18 88 Q18 30 70 30 Q122 30 122 88 Z" fill="#a8d7a4" stroke="#669e70" stroke-width="3"/>
+          <path d="M70 30 L70 88 M40 50 Q55 62 70 56 Q85 62 100 50 M30 72 H110" fill="none" stroke="#669e70" stroke-width="3" stroke-linecap="round"/>
         </svg>
         <div class="feelings">
           <button class="feeling-choice" type="button" aria-pressed="false"><span class="feeling-emoji" aria-hidden="true">😊</span><span class="feeling-label">Happy</span></button>
@@ -149,6 +150,8 @@
             <label class="setting-row"><input type="checkbox" id="setting-randomize"> Randomize feeling and color choices</label>
             <label class="setting-row"><input type="checkbox" id="setting-do-not-save" checked> Do Not Save</label>
             <p>On by default. New check-ins are not saved and location is not requested. Previously saved check-ins remain until cleared.</p>
+            <label class="setting-row"><input type="checkbox" id="setting-require-pin" checked> Require PIN to save or export</label>
+            <p>On by default. When saving is on, an adult-set PIN (4 to 8 digits) is required before saving or exporting. Turning this off asks for the PIN first. A PIN only restricts access in this app; saved data and CSV files are not encrypted.</p>
             <label class="setting-row"><input type="checkbox" id="setting-save-location"> Save location with check-ins</label>
             <p>Off by default. New check-ins saved while off have no location. Older check-ins may still contain location.</p>
             <label class="setting-row"><input type="checkbox" id="setting-multiple-users"> Save for multiple users</label>
@@ -404,7 +407,7 @@
   </main>
   <script>
     const translations = window.BearlyChatTranslations || {};
-    let settings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: true, saveLocation: false, multipleUsers: false, currentUser: '' };
+    let settings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: true, requirePin: true, saveLocation: false, multipleUsers: false, currentUser: '' };
     function translate(message) {
       const localized = translations[message];
       return localized && localized[settings.language] || message;
@@ -458,6 +461,7 @@
     const pinCancel = document.getElementById('pin-cancel');
     const pinKey = 'bearly-chat-pin';
     let resolvePin;
+    let pinForced = false;
     let historyAuthorized = false;
 
     function readPin() {
@@ -475,8 +479,11 @@
       return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
     }
 
-    function requestPin() {
-      if (window.__isTest__ || settings.doNotSave || resolvePin) return Promise.resolve(true);
+    function requestPin(force = false) {
+      if (window.__isTest__) return Promise.resolve(true);
+      if (resolvePin) return Promise.resolve(false);
+      if (!force && (settings.doNotSave || !settings.requirePin)) return Promise.resolve(true);
+      pinForced = force;
       pinInput.value = '';
       pinConfirm.value = '';
       pinStatus.textContent = '';
@@ -498,6 +505,7 @@
       pinConfirm.value = '';
       const resolve = resolvePin;
       resolvePin = null;
+      pinForced = false;
       if (resolve) resolve(false);
     });
     pinDialog.addEventListener('cancel', event => {
@@ -530,9 +538,10 @@
           localStorage.setItem(pinKey, JSON.stringify({ version: 1, salt, hash }));
         }
         const resolve = resolvePin;
+        const forced = pinForced;
         resolvePin = null;
         pinDialog.close();
-        if (resolve) resolve(!settings.doNotSave);
+        if (resolve) resolve(forced ? true : !settings.doNotSave);
       } catch (error) {
         console.error('Unable to verify PIN:', error);
         pinStatus.textContent = translate('Could not access the PIN. Check browser storage and try again.');
@@ -962,7 +971,7 @@
     const settingsScreen = document.getElementById('settings-screen');
     const settingsStatus = document.getElementById('settings-status');
     const settingsKey = 'bearly-chat-settings';
-    const defaultSettings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: true, saveLocation: false, multipleUsers: false, currentUser: '' };
+    const defaultSettings = { voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false, voiceGender: 'female', language: 'en', volume: 1, muted: false, randomize: false, doNotSave: true, requirePin: true, saveLocation: false, multipleUsers: false, currentUser: '' };
     const usersKey = 'bearly-chat-users';
     let users = [];
     let usersAvailable = true;
@@ -977,7 +986,7 @@
         if (!Object.prototype.hasOwnProperty.call(speechLocales, settings.language)) settings.language = defaultSettings.language;
         if (!Number.isFinite(settings.volume) || settings.volume < 0 || settings.volume > 1) settings.volume = defaultSettings.volume;
         if (!Number.isFinite(settings.rate) || settings.rate < 0.5 || settings.rate > 1.5) settings.rate = defaultSettings.rate;
-        ['voice', 'largeText', 'contrast', 'reduceMotion', 'muted', 'randomize', 'doNotSave', 'saveLocation', 'multipleUsers'].forEach(key => {
+        ['voice', 'largeText', 'contrast', 'reduceMotion', 'muted', 'randomize', 'doNotSave', 'requirePin', 'saveLocation', 'multipleUsers'].forEach(key => {
           if (typeof settings[key] !== 'boolean') settings[key] = defaultSettings[key];
         });
         if (typeof settings.currentUser !== 'string') settings.currentUser = '';
@@ -1045,6 +1054,7 @@
       document.getElementById('setting-mute').checked = settings.muted;
       document.getElementById('setting-randomize').checked = settings.randomize;
       document.getElementById('setting-do-not-save').checked = settings.doNotSave;
+      document.getElementById('setting-require-pin').checked = settings.requirePin;
       document.getElementById('setting-save-location').checked = settings.saveLocation;
       document.getElementById('setting-multiple-users').checked = settings.multipleUsers;
       document.getElementById('setting-multiple-users').disabled = !usersAvailable;
@@ -1133,6 +1143,23 @@
     });
     document.getElementById('setting-do-not-save').addEventListener('change', event => {
       settings.doNotSave = event.target.checked;
+      applySettings();
+      saveSettings();
+    });
+    document.getElementById('setting-require-pin').addEventListener('change', async event => {
+      if (event.target.checked) {
+        settings.requirePin = true;
+        applySettings();
+        saveSettings();
+        return;
+      }
+      let hasPin;
+      try { hasPin = readPin() !== null; } catch (error) { hasPin = true; }
+      if (hasPin && !await requestPin(true)) {
+        applySettings();
+        return;
+      }
+      settings.requirePin = false;
       applySettings();
       saveSettings();
     });

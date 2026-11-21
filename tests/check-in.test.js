@@ -98,8 +98,8 @@ function createApp(options = {}) {
   const metadata = options.metadata || new Map();
   if (options.legacy) storage.set('toddle-cation-check-ins', JSON.stringify(options.legacy));
   
-  // Pre-populate PIN for test save/download operations
-  storage.set('bearly-chat-pin', JSON.stringify({
+  // Pre-populate PIN for test save/download operations (not when a test exercises the real PIN flow)
+  if (!options.realPin) storage.set('bearly-chat-pin', JSON.stringify({
     version: 1,
     salt: '000102030405060708090a0b0c0d0e0f1011',
     hash: '6bbd27aa26ad70ab1d3aa5228a45c382036b72252bfebb52ced65e2cb267436d'
@@ -124,8 +124,9 @@ function createApp(options = {}) {
   ]);
     
   const mockCrypto = {
-    getRandomValues: (array) => realWebCrypto.getRandomValues(array),
+    getRandomValues: (array) => { const bytes = new Uint8Array(array.length); realWebCrypto.getRandomValues(bytes); array.set(bytes); return array; },
     subtle: {
+      importKey: (...args) => realWebCrypto.subtle.importKey(...args),
       deriveBits: async (algo, key, length) => {
         if (algo.name !== 'PBKDF2') {
           return realWebCrypto.subtle.deriveBits(algo, key, length);
@@ -141,7 +142,7 @@ function createApp(options = {}) {
         if (precomputed) {
           return new Uint8Array(precomputed.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
         }
-        return realWebCrypto.subtle.deriveBits(algo, key, length);
+        return realWebCrypto.subtle.deriveBits({ ...algo, salt: Uint8Array.from(algo.salt) }, key, length);
       }
     }
   };
@@ -156,7 +157,7 @@ function createApp(options = {}) {
       openedPages.push({ url, target });
       return options.popupBlocked ? null : {};
     },
-    scrollTo() {}, close() {}, confirm() { return true; }, __isTest__: true
+    scrollTo() {}, close() {}, confirm() { return true; }, __isTest__: !options.realPin
   };
   if (options.onPrint) window.print = options.onPrint;
   if (options.showDirectoryPicker) window.showDirectoryPicker = options.showDirectoryPicker;
@@ -259,12 +260,13 @@ function createApp(options = {}) {
   };
   const testMath = Object.assign(Object.create(Math), { random: () => 0 });
   vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../translations.js'), 'utf8'), { window });
-  vm.runInNewContext(script, { document, window, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, SpeechSynthesisUtterance, Math: testMath, setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout, console: { error() {} } });
+  vm.runInNewContext(script, { document, window, TextEncoder, navigator, localStorage, sessionStorage, indexedDB, URL, Blob, SpeechSynthesisUtterance, Math: testMath, setTimeout: options.setTimeout || setTimeout, clearTimeout: options.clearTimeout || clearTimeout, console: { error() {} } });
   return {
     elements, document, feeling, sadFeeling, madFeeling, feelingChoices, feelingContainer: feelings, colorChoices, colorContainer: colors, color, redColor, storage, records, downloads, downloadLinks, openedPages, handlers, spoken, utterances, speechEvents, navigator,
     feelingOrder: feelings.children.map(choice => choice.lastChild.textContent),
     colorOrder: colors.children.map(choice => choice.getAttribute('aria-label')),
-    getRequest: () => request
+    getRequest: () => request,
+    getPinSubmitInProgress: () => pinSubmitInProgress
   };
 }
 
@@ -456,9 +458,9 @@ test('keeps the feeling choices in their original order on load', () => {
   assert.deepEqual(app.feelingOrder, ['Happy', 'Sad', 'Mad']);
 });
 
-test('caterpillar decoration does not become a feeling choice', () => {
+test('turtle decoration does not become a feeling choice', () => {
   const screen = html.match(/<section id="feelings-screen"[\s\S]*?<\/section>/)[0];
-  assert.match(screen, /<svg class="caterpillar-head"[^>]*aria-hidden="true"/);
+  assert.match(screen, /<svg class="turtle"[^>]*aria-hidden="true"/);
   const choices = screen.match(/<div class="feelings">([\s\S]*?)<\/div>/)[1];
   assert.equal((choices.match(/<button class="feeling-choice"/g) || []).length, 15);
   assert.doesNotMatch(choices, /<svg/);
@@ -473,7 +475,7 @@ test('bear background is decorative and omitted from printable and high-contrast
   assert.match(css, /html\.high-contrast body::before\s*\{\s*display:\s*none/);
 });
 
-test('shuffled caterpillar choices remain selectable', () => {
+test('shuffled feeling choices remain selectable', () => {
   const app = createApp({ allFeelings: true });
   app.elements.get('setting-randomize').events.change({ target: { checked: true } });
   assert.equal(app.feelingContainer.children.length, 15);
@@ -1791,7 +1793,7 @@ test('settings select voice and language, adjust volume, and shuffle choices', (
   assert.equal(utterance.volume, 0.4);
   assert.deepEqual(JSON.parse(app.storage.get('bearly-chat-settings')), {
     voice: true, rate: 0.92, largeText: false, contrast: false, reduceMotion: false,
-    voiceGender: 'male', language: 'es', volume: 0.4, muted: false, randomize: false, doNotSave: false, saveLocation: true, multipleUsers: false, currentUser: ''
+    voiceGender: 'male', language: 'es', volume: 0.4, muted: false, randomize: false, doNotSave: false, requirePin: true, saveLocation: true, multipleUsers: false, currentUser: ''
   });
 
   elements.get('setting-randomize').events.change({ target: { checked: true } });
@@ -2188,4 +2190,90 @@ test('Settings links to the privacy policy and terms, including contact and offl
   assert.match(terms, /Not medical, therapy or legal advice/);
   assert.match(terms, /No warranty and limits of liability/);
   assert.match(terms, /mailto:tmpark12@asu\.edu/);
+});
+
+
+// The real PIN hash (PBKDF2) takes longer than a few event-loop turns, so wait on it properly.
+async function waitPin(app) {
+  for (let i = 0; i < 300; i++) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+    if (!app.getPinSubmitInProgress()) break;
+  }
+  for (let i = 0; i < 5; i++) await flush();
+}
+
+test('Require PIN is a Settings switch that is on by default', () => {
+  const app = createApp({ locationOff: true });
+  assert.equal(app.elements.get('setting-require-pin').checked, true);
+  assert.match(html, /id="setting-require-pin" checked> Require PIN to save or export/);
+});
+
+test('with Require PIN off, saving needs no PIN and none is created', async () => {
+  const storageValues = new Map([['bearly-chat-settings', JSON.stringify({ doNotSave: false, saveLocation: false, requirePin: false })]]);
+  const app = createApp({ storageValues, realPin: true });
+  select(app);
+  app.elements.get('save-check-in').click();
+  await waitPin(app);
+  await flush();
+  assert.notEqual(app.elements.get('pin-dialog').open, true);
+  assert.equal(app.records.length, 1);
+  assert.equal(storageValues.has('bearly-chat-pin'), false);
+});
+
+test('with Require PIN on and saving on, the first save asks the adult to create a PIN', async () => {
+  const storageValues = new Map([['bearly-chat-settings', JSON.stringify({ doNotSave: false, saveLocation: false, requirePin: true })]]);
+  const app = createApp({ storageValues, realPin: true });
+  select(app);
+  app.elements.get('save-check-in').click();
+  await waitPin(app);
+  await flush();
+  assert.equal(storageValues.has('bearly-chat-pin'), true);
+  assert.equal(app.records.length, 1);
+});
+
+test('Do Not Save never asks for a PIN, even when Require PIN is on', async () => {
+  const storageValues = new Map([['bearly-chat-settings', JSON.stringify({ doNotSave: true, requirePin: true })]]);
+  const app = createApp({ storageValues, realPin: true });
+  select(app);
+  app.elements.get('save-check-in').click();
+  await flush();
+  assert.notEqual(app.elements.get('pin-dialog').open, true);
+  assert.equal(app.records.length, 0);
+});
+
+test('turning Require PIN off asks for the PIN when one exists, and a wrong PIN keeps it on', async () => {
+  const storageValues = new Map([['bearly-chat-settings', JSON.stringify({ doNotSave: false, saveLocation: false, requirePin: true })]]);
+  const app = createApp({ storageValues, realPin: true });
+  select(app);
+  app.elements.get('save-check-in').click();
+  await waitPin(app);
+  await flush();
+  const pin = JSON.parse(storageValues.get('bearly-chat-pin'));
+
+  app.elements.get('setting-require-pin').events.change({ target: { checked: false } });
+  await waitPin(app);
+  await flush();
+  assert.equal(JSON.parse(storageValues.get('bearly-chat-settings')).requirePin, false);
+
+  app.elements.get('setting-require-pin').events.change({ target: { checked: true } });
+  assert.equal(JSON.parse(storageValues.get('bearly-chat-settings')).requirePin, true);
+  storageValues.set('bearly-chat-pin', JSON.stringify({ version: 1, salt: pin.salt, hash: '0'.repeat(64) }));
+  app.elements.get('setting-require-pin').events.change({ target: { checked: false } });
+  await waitPin(app);
+  await flush();
+  assert.equal(app.elements.get('pin-dialog').open, true);
+  assert.match(app.elements.get('pin-status').textContent, /incorrect pin/i);
+  app.elements.get('pin-cancel').click();
+  await flush();
+  assert.equal(JSON.parse(storageValues.get('bearly-chat-settings')).requirePin, true);
+  assert.equal(app.elements.get('setting-require-pin').checked, true);
+});
+
+test('with no PIN ever created, Require PIN can be turned off without a prompt', async () => {
+  const storageValues = new Map([['bearly-chat-settings', JSON.stringify({ doNotSave: false, requirePin: true })]]);
+  const app = createApp({ storageValues, realPin: true });
+  app.elements.get('setting-require-pin').events.change({ target: { checked: false } });
+  await flush();
+  assert.notEqual(app.elements.get('pin-dialog').open, true);
+  assert.equal(JSON.parse(storageValues.get('bearly-chat-settings')).requirePin, false);
 });

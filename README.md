@@ -2,13 +2,15 @@
 
 A simple check-in for toddlers to pick up to three feelings and a color that matches how they feel.
 
-Feeling choices appear as colorful segments of a friendly caterpillar, with a layout that adapts to smaller screens.
+Feeling choices appear as colorful choices beneath a friendly faceless turtle, with a layout that adapts to smaller screens.
 
 Choose the question mark to enter a custom feeling name. You can add multiple different custom feelings, up to the same three-feeling limit. The confirmation speaks the entered text using the selected language's device voice when available; the text is not automatically translated.
 
 Serve the app over HTTPS or localhost to use optional location, installation and offline support. To install it on a device, publish all app files (including the `icons` folder) together on an HTTPS web host. No account is required.
 
 Open **Settings** to shuffle the feeling and color choices with **Randomize**, select a device-provided male or female voice (female by default), change speech volume, or mute speech. The interface defaults to English and also supports Spanish, French, German, Portuguese, Russian, Simplified Chinese, Japanese, and Korean. **Do Not Save** is on by default: new check-ins and notes are not stored, location is not requested, and save/download options are disabled. Turn it off in Settings to save check-ins; an existing explicit preference is preserved. Previously saved check-ins remain until cleared. **Save location with check-ins** is off by default; enabling it requests location when saving. The **Help** link explains the app and installation; the privacy notice describes data handling.
+
+**Require PIN to save or export** is on by default. When saving is on, the first save asks the adult to create a 4 to 8 digit PIN, and the PIN is entered before saving, exporting or viewing saved check-ins; while the setting is off, no PIN is asked for. Turning the setting off asks for the PIN first. A PIN only restricts access in the app; saved data and CSV files are not encrypted.
 
 **Save for multiple users** is off by default. When enabled, choose a user in Settings or add one using the name dialog. Names are saved in this browser even when **Do Not Save** is on; use non-identifying nicknames. Profiles are not accounts and have no password protection. Each saved check-in belongs to the selected user, and history and exports show only that user's records. Existing unassigned check-ins remain separate and can be viewed by turning multi-user mode off. Profiles stay in browser storage when check-ins are cleared; clear the site's browser data to remove names and settings. Changing users does not turn saving on. In supported browsers, exporting a user's history creates a separate named folder inside `checkins`; otherwise it downloads a user-named CSV. The single-check-in download remains a separate browser download.
 

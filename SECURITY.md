@@ -1,4 +1,4 @@
-# Security and privacy notes
+https://hq.globaltech.org/courses/11059/assignments/43772/submissions/57713# Security and privacy notes
 
 Bearly Chat is a static web app. It has no server database, accounts or analytics, and it stores check-ins in the browser (IndexedDB) on the device.
 
